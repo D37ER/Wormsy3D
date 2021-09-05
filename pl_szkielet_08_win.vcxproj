@@ -21,8 +21,8 @@
   <ItemGroup>
     <ClInclude Include="constants.h" />
     <ClInclude Include="lodepng.h" />
-    <ClInclude Include="myCube.h" />
-    <ClInclude Include="myTeapot.h" />
+    <ClInclude Include="obiekty\myCube.h" />
+    <ClInclude Include="obiekty\myTeapot.h" />
     <ClInclude Include="shaderprogram.h" />
   </ItemGroup>
   <ItemGroup>
@@ -31,8 +31,8 @@
     <ClCompile Include="shaderprogram.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="f_simplest.glsl" />
-    <None Include="v_simplest.glsl" />
+    <None Include="shadery\f_simplest.glsl" />
+    <None Include="shadery\v_simplest.glsl" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

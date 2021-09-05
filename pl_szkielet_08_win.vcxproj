@@ -31,8 +31,10 @@
     <ClCompile Include="shaderprogram.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="shaders\mapFS.glsl" />
     <None Include="shaders\f_simplest.glsl" />
     <None Include="shaders\v_simplest.glsl" />
+    <None Include="shaders\mapVS.glsl" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

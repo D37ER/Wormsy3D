@@ -27,6 +27,7 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 #include <glm/gtc/matrix_transform.hpp>
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 #include "constants.h"
 #include "lodepng.h"
 #include "shaderprogram.h"
@@ -35,13 +36,30 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 
 using namespace glm;
 
-float speed_x = 0;
-float speed_y = 0;
+
 
 //kamera
 float rot_x;
 float rot_y;
+float camera_distance = 10;
 
+bool moving_forward = false;
+float player_speed_rot = 1;
+float player_speed_rot_y = 0;
+float player_rot_y = 0;
+float pos_x = 50;
+float pos_y = 1;
+float pos_z = 50;
+float speed = 2;
+float speed_x = 0;
+float speed_y = 0;
+float speed_z = 0;
+
+//mapa
+int mapX = 100, mapY = 100;
+float map[100][100];
+vec4 mapPos[60000];
+vec4 mapNormals[60000];
 
 //okno
 int windowHeight = 900;
@@ -52,20 +70,11 @@ float fov = 50;
 ShaderProgram *sp, *spMap;
 
 
-//Odkomentuj, żeby rysować kostkę
 float* vertices = myCubeVertices;
 float* normals = myCubeNormals;
 float* texCoords = myCubeTexCoords;
 float* colors = myCubeColors;
 int vertexCount = myCubeVertexCount;
-
-
-//Odkomentuj, żeby rysować czajnik
-//float* vertices = myTeapotVertices;
-//float* normals = myTeapotVertexNormals;
-//float* texCoords = myTeapotTexCoords;
-//float* colors = myTeapotColors;
-//int vertexCount = myTeapotVertexCount;
 
 GLuint tex0;
 GLuint tex1;
@@ -78,24 +87,37 @@ void error_callback(int error, const char* description) {
 
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 	if (action == GLFW_PRESS) {
-		if (key == GLFW_KEY_LEFT) speed_x = -PI / 2;
-		if (key == GLFW_KEY_RIGHT) speed_x = PI / 2;
-		if (key == GLFW_KEY_UP) speed_y = PI / 2;
-		if (key == GLFW_KEY_DOWN) speed_y = -PI / 2;
+		if (key == GLFW_KEY_A) speed_x = speed;
+		if (key == GLFW_KEY_D) speed_x = -speed;
+		if (key == GLFW_KEY_W) speed_z = speed;
+		if (key == GLFW_KEY_S) speed_z = -speed;
 	}
 	if (action == GLFW_RELEASE) {
-		if (key == GLFW_KEY_LEFT) speed_x = 0;
-		if (key == GLFW_KEY_RIGHT) speed_x = 0;
-		if (key == GLFW_KEY_UP) speed_y = 0;
-		if (key == GLFW_KEY_DOWN) speed_y = 0;
+		if (key == GLFW_KEY_A) speed_x = 0;
+		if (key == GLFW_KEY_D) speed_x = 0;
+		if (key == GLFW_KEY_W) speed_z = 0;
+		if (key == GLFW_KEY_S) speed_z = 0;
 	}
 }
 
 static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
 {
-	rot_x = xpos/100.0f;
-	rot_y = ypos / 100.0f;
-	printf("%f %f", (float)xpos, (float)ypos);
+	rot_x = ypos / 100.0f;
+	rot_y = xpos / 100.0f;
+	while (rot_x > 2 * PI)
+		rot_x -= 2 * PI;
+	while (rot_x < 0)
+		rot_x += 2 * PI;
+	while (rot_y > 2 * PI)
+		rot_y -= 2 * PI;
+	while (rot_y < 0)
+		rot_y += 2 * PI;
+	printf("%f %f %f %f \n", (float)rot_x, (float)rot_y, (float)cos(rot_y), (float)sin(rot_y));
+}
+
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+	camera_distance -= yoffset;
 }
 
 
@@ -135,12 +157,53 @@ GLuint readTexture(const char* filename) {
 //Procedura inicjująca
 void initOpenGLProgram(GLFWwindow* window) {
 	//************Tutaj umieszczaj kod, który należy wykonać raz, na początku programu************
+	int index = 0;
+	for (int i = 0; i < mapX - 1; i++)
+	{
+		for (int j = 0; j < mapY - 1; j++)
+		{
+			if(rand() % 5 == 0)
+				map[i][j] = rand() % 3;
+			else
+				map[i][j] = 0;
+		}
+	}
+
+	vec3 n;
+	for (int i = 0; i < mapX-1; i++)
+	{
+		for (int j = 0; j < mapY - 1; j++)
+		{
+			mapPos[index++] = vec4(i, map[i][j], j, 1.0f);
+			mapPos[index++] = vec4(i+1, map[i + 1][j], j, 1.0f);
+			mapPos[index++] = vec4(i, map[i][j + 1], j + 1, 1.0f);
+
+			n = normalize(cross(vec3(mapPos[index - 1]) - vec3(mapPos[index - 3]), vec3(mapPos[index - 1]) - vec3(mapPos[index - 2])));
+
+			mapNormals[index - 1] = vec4(n, 1);
+			mapNormals[index - 2] = vec4(n, 1);
+			mapNormals[index - 3] = vec4(n, 1);
+
+			mapPos[index++] = vec4(i + 1, map[i + 1][j], j, 1.0f);
+			mapPos[index++] = vec4(i, map[i][j + 1], j + 1, 1.0f);
+			mapPos[index++] = vec4(i + 1, map[i + 1][j + 1], j + 1, 1.0f);
+
+			n = normalize(cross(vec3(mapPos[index - 1]) - vec3(mapPos[index - 3]), vec3(mapPos[index - 1]) - vec3(mapPos[index - 2])));
+
+			mapNormals[index - 1] = vec4(n, 1);
+			mapNormals[index - 2] = vec4(n, 1);
+			mapNormals[index - 3] = vec4(n, 1);
+		}
+	}
+
+
 	glClearColor(0, 0, 0, 1);
 	glEnable(GL_DEPTH_TEST);
 	glfwSetWindowSizeCallback(window, windowResizeCallback);
 	glfwSetKeyCallback(window, keyCallback);
 	glfwSetCursorPosCallback(window, cursor_position_callback);
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	glfwSetScrollCallback(window, scroll_callback);
 
 	sp = new ShaderProgram("shaders/v_simplest.glsl", NULL, "shaders/f_simplest.glsl");
 	spMap = new ShaderProgram("shaders/mapVS.glsl", NULL, "shaders/mapFS.glsl");
@@ -154,32 +217,36 @@ void freeOpenGLProgram(GLFWwindow* window) {
 	//************Tutaj umieszczaj kod, który należy wykonać po zakończeniu pętli głównej************
 
 	delete sp;
+	delete spMap;
 }
 
 
 
 
 //Procedura rysująca zawartość sceny
-void drawScene(GLFWwindow* window, float angle_x, float angle_y) {
+void drawScene(GLFWwindow* window) {
 	//************Tutaj umieszczaj kod rysujący obraz******************l
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	mat4 V = lookAt(
-		vec3(0, 0, -10),
+		vec3(0, 0, -camera_distance),
 		vec3(0, 0, 0),
 		vec3(0.0f, 1.0f, 0.0f)); //Wylicz macierz widoku
 
-	V = rotate(V, rot_y, vec3(1.0f, 0.0f, 0.0f));
-	V = rotate(V, rot_x, vec3(0.0f, 1.0f, 0.0f));
-	
+	V = rotate(V, -rot_x, vec3(1.0f, 0.0f, 0.0f));
+	V = rotate(V, -rot_y, vec3(0.0f, 1.0f, 0.0f));
+	V = translate(V, vec3(-pos_x, -pos_y, -pos_z));
 
-	printf("pos: \n %f %f %f %f \n %f %f %f %f \n %f %f %f %f \n %f %f %f %f \n", V[0][0], V[0][1], V[0][2], V[0][3], V[1][0], V[1][1], V[1][2], V[1][3], V[2][0], V[2][1], V[2][2], V[2][3], V[3][0], V[3][1], V[3][2], V[3][3]);
+	//printf("pos: \n %f %f %f %f \n %f %f %f %f \n %f %f %f %f \n %f %f %f %f \n", V[0][0], V[0][1], V[0][2], V[0][3], V[1][0], V[1][1], V[1][2], V[1][3], V[2][0], V[2][1], V[2][2], V[2][3], V[3][0], V[3][1], V[3][2], V[3][3]);
 
 	mat4 P = perspective(fov*PI / 180.0f, aspectRatio, 0.01f, 50.0f); //Wylicz macierz rzutowania
 
 	mat4 M = mat4(1.0f);
-	M = rotate(M, angle_y, vec3(-1.0f, 0.0f, 0.0f)); //Wylicz macierz modelu
-	M = rotate(M, angle_x, vec3(0.0f, -1.0f, 0.0f)); //Wylicz macierz modelu
+	M = translate(M, vec3(pos_x, pos_y, pos_z)); //Wylicz macierz modelu
+	M = rotate(M, player_rot_y, vec3(0, 1, 0)); //Wylicz macierz modelu
+
+
+
 
 	sp->use();//Aktywacja programu cieniującego
 	//Przeslij parametry programu cieniującego do karty graficznej
@@ -214,12 +281,28 @@ void drawScene(GLFWwindow* window, float angle_x, float angle_y) {
 	glDisableVertexAttribArray(sp->a("normal"));  //Wyłącz przesyłanie danych do atrybutu normal
 	glDisableVertexAttribArray(sp->a("texCoord0"));  //Wyłącz przesyłanie danych do atrybutu texCoord0
 
+	spMap->use();//Aktywacja programu cieniującego
+	//Przeslij parametry programu cieniującego do karty graficznej
+	glUniformMatrix4fv(spMap->u("P"), 1, false, value_ptr(P));
+	glUniformMatrix4fv(spMap->u("V"), 1, false, value_ptr(V));
+
+	glEnableVertexAttribArray(spMap->a("mapPos"));  //Włącz przesyłanie danych do atrybutu vertex
+	glVertexAttribPointer(spMap->a("mapPos"), 4, GL_FLOAT, false, 0, mapPos); //Wskaż tablicę z danymi dla atrybutu vertex
+
+	glEnableVertexAttribArray(spMap->a("normal"));  //Włącz przesyłanie danych do atrybutu vertex
+	glVertexAttribPointer(spMap->a("normal"), 4, GL_FLOAT, false, 0, mapNormals); //Wskaż tablicę z danymi dla atrybutu vertex
+
+	glDrawArrays(GL_TRIANGLES, 0, mapX*mapY*6); //Narysuj obiekt
+
+	glDisableVertexAttribArray(spMap->a("vertex"));  //Wyłącz przesyłanie danych do atrybutu vertex
+
 	glfwSwapBuffers(window); //Przerzuć tylny bufor na przedni
 }
 
 
 int main(void)
 {
+	srand(time(NULL));
 	GLFWwindow* window; //Wskaźnik na obiekt reprezentujący okno
 
 	glfwSetErrorCallback(error_callback);//Zarejestruj procedurę obsługi błędów
@@ -249,15 +332,38 @@ int main(void)
 	initOpenGLProgram(window); //Operacje inicjujące
 
 	//Główna pętla
-	float angle_x = 0; //Aktualny kąt obrotu obiektu
-	float angle_y = 0; //Aktualny kąt obrotu obiektu
 	glfwSetTime(0); //Zeruj timer
 	while (!glfwWindowShouldClose(window)) //Tak długo jak okno nie powinno zostać zamknięte
 	{
-		angle_x += speed_x * glfwGetTime(); //Zwiększ/zmniejsz kąt obrotu na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
-		angle_y += speed_y * glfwGetTime(); //Zwiększ/zmniejsz kąt obrotu na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
+		pos_y += speed_y * glfwGetTime(); //Zwiększ/zmniejsz pozycje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
+
+		pos_x += sin(player_rot_y + PI / 2.0f)*speed_x * glfwGetTime(); //Zwiększ/zmniejsz pozycje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
+		pos_z += cos(player_rot_y + PI / 2.0f)*speed_x * glfwGetTime(); //Zwiększ/zmniejsz pozycje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
+
+		pos_x += sin(player_rot_y)*speed_z * glfwGetTime(); //Zwiększ/zmniejsz pozycje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
+		pos_z += cos(player_rot_y)*speed_z * glfwGetTime(); //Zwiększ/zmniejsz pozycje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
+		if (speed_z != 0)
+		{
+			if (rot_y - player_rot_y < 0.05 && rot_y - player_rot_y > -0.05)
+				player_speed_rot_y = 0;
+			else if (rot_y - player_rot_y >= PI || (rot_y - player_rot_y <= 0 && rot_y - player_rot_y > -PI))
+				player_speed_rot_y = -player_speed_rot;
+			else
+				player_speed_rot_y = player_speed_rot;
+
+			player_rot_y += player_speed_rot_y * glfwGetTime(); //Zwiększ/zmniejsz rotacje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
+
+			while (player_rot_y > 2 * PI)
+				player_rot_y -= 2 * PI;
+
+			while (player_rot_y < 0)
+				player_rot_y += 2 * PI;
+
+			printf("%f %f \n", player_rot_y, rot_y);
+		}
+
 		glfwSetTime(0); //Zeruj timer
-		drawScene(window, angle_x, angle_y); //Wykonaj procedurę rysującą
+		drawScene(window); //Wykonaj procedurę rysującą
 		glfwPollEvents(); //Wykonaj procedury callback w zalezności od zdarzeń jakie zaszły.
 	}
 

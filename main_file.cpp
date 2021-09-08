@@ -56,8 +56,7 @@ float speed_y = 0;
 float speed_z = 0;
 
 //mapa
-int mapX = 100, mapY = 100;
-float map[100][100];
+vec3 *mapSize;
 vec4 mapPos[60000];
 vec4 mapNormals[60000];
 
@@ -78,6 +77,7 @@ int vertexCount = myCubeVertexCount;
 
 GLuint tex0;
 GLuint tex1;
+GLuint tex2;
 
 //Procedura obsługi błędów
 void error_callback(int error, const char* description) {
@@ -153,40 +153,73 @@ GLuint readTexture(const char* filename) {
 	return tex;
 }
 
+void readMapHeightTexture(const char* filename, vec4 *mapPos, vec3 **size) {
+	GLuint tex;
+	glActiveTexture(GL_TEXTURE0);
+
+	//Wczytanie do pamięci komputera
+	std::vector<unsigned char> image;   //Alokuj wektor do wczytania obrazka
+	unsigned width, height;   //Zmienne do których wczytamy wymiary obrazka
+	//Wczytaj obrazek
+	unsigned error = lodepng::decode(image, width, height, filename);
+
+	printf("%s\n", filename);
+
+	*size = new vec3(width, 10.0f, height);
+
+	for (int i = 0; i < width*height; i++)
+	{
+		printf("%d [%d]\t", i, image[4 * i]);
+
+		mapPos[6 * i] = vec4(i / width, image[4 * i] / 255.0f, i % width, 1.0f);
+		if (i / width != height - 1)
+			mapPos[6 * i + 1] = vec4(i / width + 1, image[4 * (i + width)] / 255.0f, i % width, 1.0f);
+		else
+			mapPos[6 * i + 1] = vec4(i / width + 1, 0, i % width, 1.0f);
+		if (i % width != width - 1)
+			mapPos[6 * i + 2] = vec4(i / width, image[4 * (i + 1)] / 255.0f, i % width + 1, 1.0f);
+		else
+			mapPos[6 * i + 2] = vec4(i / width, 0, i % width + 1, 1.0f);
+
+		if (i / width != height - 1)
+			mapPos[6 * i + 3] = vec4(i / width + 1, image[4 * (i + width)] / 255.0f, i % width, 1.0f);
+		else
+			mapPos[6 * i + 3] = vec4(i / width + 1, 0, i % width, 1.0f);
+		if (i % width != width - 1)
+			mapPos[6 * i + 4] = vec4(i / width, image[4 * (i + 1)] / 255.0f, i % width + 1, 1.0f);
+		else
+			mapPos[6 * i + 4] = vec4(i / width, 0, i % width + 1, 1.0f);
+		if (i / width != height - 1 && i % width != width - 1)
+			mapPos[6 * i + 5] = vec4(i / width + 1, image[4 * (i + 1 + width)] / 255.0f, i % width + 1, 1.0f);
+		else
+			mapPos[6 * i + 5] = vec4(i / width + 1, 0, i % width + 1, 1.0f);
+		
+	}
+}
+
 
 //Procedura inicjująca
 void initOpenGLProgram(GLFWwindow* window) {
 	//************Tutaj umieszczaj kod, który należy wykonać raz, na początku programu************
 	int index = 0;
+	/*
+	vec3 n;
 	for (int i = 0; i < mapX - 1; i++)
 	{
 		for (int j = 0; j < mapY - 1; j++)
 		{
-			if(rand() % 5 == 0)
-				map[i][j] = rand() % 3;
-			else
-				map[i][j] = 0;
-		}
-	}
+			mapPos[index++] = vec4(i, 0, j, 1.0f);
+			mapPos[index++] = vec4(i + 1, 0, j, 1.0f);
+			mapPos[index++] = vec4(i, 0, j + 1, 1.0f);
 
-	vec3 n;
-	for (int i = 0; i < mapX-1; i++)
-	{
-		for (int j = 0; j < mapY - 1; j++)
-		{
-			mapPos[index++] = vec4(i, map[i][j], j, 1.0f);
-			mapPos[index++] = vec4(i+1, map[i + 1][j], j, 1.0f);
-			mapPos[index++] = vec4(i, map[i][j + 1], j + 1, 1.0f);
-
-			n = normalize(cross(vec3(mapPos[index - 1]) - vec3(mapPos[index - 3]), vec3(mapPos[index - 1]) - vec3(mapPos[index - 2])));
 
 			mapNormals[index - 1] = vec4(n, 1);
 			mapNormals[index - 2] = vec4(n, 1);
 			mapNormals[index - 3] = vec4(n, 1);
 
-			mapPos[index++] = vec4(i + 1, map[i + 1][j], j, 1.0f);
-			mapPos[index++] = vec4(i, map[i][j + 1], j + 1, 1.0f);
-			mapPos[index++] = vec4(i + 1, map[i + 1][j + 1], j + 1, 1.0f);
+			mapPos[index++] = vec4(i + 1, 0, j, 1.0f);
+			mapPos[index++] = vec4(i, 0, j + 1, 1.0f);
+			mapPos[index++] = vec4(i + 1, 0, j + 1, 1.0f);
 
 			n = normalize(cross(vec3(mapPos[index - 1]) - vec3(mapPos[index - 3]), vec3(mapPos[index - 1]) - vec3(mapPos[index - 2])));
 
@@ -195,7 +228,7 @@ void initOpenGLProgram(GLFWwindow* window) {
 			mapNormals[index - 3] = vec4(n, 1);
 		}
 	}
-
+	*/
 
 	glClearColor(0, 0, 0, 1);
 	glEnable(GL_DEPTH_TEST);
@@ -209,6 +242,7 @@ void initOpenGLProgram(GLFWwindow* window) {
 	spMap = new ShaderProgram("shaders/mapVS.glsl", NULL, "shaders/mapFS.glsl");
 	tex0 = readTexture("textures/metal.png");
 	tex1 = readTexture("textures/metal_spec.png");
+	readMapHeightTexture("maps/map1.png", mapPos, &mapSize);
 }
 
 
@@ -239,7 +273,7 @@ void drawScene(GLFWwindow* window) {
 
 	//printf("pos: \n %f %f %f %f \n %f %f %f %f \n %f %f %f %f \n %f %f %f %f \n", V[0][0], V[0][1], V[0][2], V[0][3], V[1][0], V[1][1], V[1][2], V[1][3], V[2][0], V[2][1], V[2][2], V[2][3], V[3][0], V[3][1], V[3][2], V[3][3]);
 
-	mat4 P = perspective(fov*PI / 180.0f, aspectRatio, 0.01f, 50.0f); //Wylicz macierz rzutowania
+	mat4 P = perspective(fov*PI / 180.0f, aspectRatio, 0.01f, 200.0f); //Wylicz macierz rzutowania
 
 	mat4 M = mat4(1.0f);
 	M = translate(M, vec3(pos_x, pos_y, pos_z)); //Wylicz macierz modelu
@@ -292,7 +326,13 @@ void drawScene(GLFWwindow* window) {
 	glEnableVertexAttribArray(spMap->a("normal"));  //Włącz przesyłanie danych do atrybutu vertex
 	glVertexAttribPointer(spMap->a("normal"), 4, GL_FLOAT, false, 0, mapNormals); //Wskaż tablicę z danymi dla atrybutu vertex
 
-	glDrawArrays(GL_TRIANGLES, 0, mapX*mapY*6); //Narysuj obiekt
+	glUniform1i(spMap->u("textureMap2"), 2);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, tex2);
+
+	printf("############## %d %d", mapSize->x, mapSize->z);
+
+	glDrawArrays(GL_TRIANGLES, 0, mapSize->x*(mapSize->z) * 6); //Narysuj obiekt
 
 	glDisableVertexAttribArray(spMap->a("vertex"));  //Wyłącz przesyłanie danych do atrybutu vertex
 

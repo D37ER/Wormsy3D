@@ -4,6 +4,8 @@
 uniform mat4 P;
 uniform mat4 V;
 
+uniform sampler2D textureMap2;
+
 //Atrybuty
 in vec4 mapPos;
 in vec4 normal;
@@ -17,7 +19,8 @@ void main(void) {
 	vec4 n = normalize(V * normal);
 	nl = 0.1 + 0.9*clamp(dot(n, l), 0, 1);
 
-	color = vec3(0.1-0.1*mapPos.y, 0.9 + 0.1*mapPos.y, 0);
+
+	color = vec3(0.5-0.5*mapPos.y, 0.5 + 0.5*mapPos.y, 0);
 	
     gl_Position=P*V*mapPos;
 }

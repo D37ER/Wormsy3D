@@ -1,7 +1,7 @@
 # Wormsy3D
 Projekt PUT GKiW
 
-#TODO
+TODO
 
 - mapa z plików
 - chodzenie "po mapie"

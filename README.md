@@ -4,7 +4,7 @@ Projekt PUT GKiW
 TODO
 
 - mapa z plików
-- wiele plików z kodem
+- wiele plików z kodem (obiektówka, zmiana nazwy projektu)
 - chodzenie "po mapie"
 - pociski po krzywej
 - interakcja pocisk-teren

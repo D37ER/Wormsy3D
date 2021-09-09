@@ -33,15 +33,21 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 #include "shaderprogram.h"
 #include "objects/myCube.h"
 #include "objects/myTeapot.h"
+#include <stdio.h> 
+#include <dirent.h> 
+#include <stdlib.h>
+
+
 
 using namespace glm;
+
 
 
 
 //kamera
 float rot_x;
 float rot_y;
-float camera_distance = 10;
+float camera_distance = 30;
 
 bool moving_forward = false;
 float player_speed_rot = 1;
@@ -54,6 +60,14 @@ float speed = 2;
 float speed_x = 0;
 float speed_y = 0;
 float speed_z = 0;
+
+//mapy
+char **filenames;
+char **mapFilenames;
+char ** names;
+GLuint * mini;
+int * sizeY;
+int count;
 
 //mapa
 vec3 *mapSize;
@@ -102,8 +116,8 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 
 static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
 {
-	rot_x = ypos / 100.0f;
-	rot_y = xpos / 100.0f;
+	rot_x = (float)ypos / 100.0f;
+	rot_y = (float)xpos / 100.0f;
 	while (rot_x > 2 * PI)
 		rot_x -= 2 * PI;
 	while (rot_x < 0)
@@ -153,28 +167,102 @@ GLuint readTexture(const char* filename) {
 	return tex;
 }
 
-void readMapHeightTexture(const char* filename, vec4 *mapPos, vec3 **size) {
+void readMapList(char ***filenames, char ***mapFilenames, char *** names, GLuint ** mini, int ** sizeY, int * count)
+{
+	*filenames = new char *[1];
+	*mapFilenames = new char *[1];
+	*names = new char *[1];
+	*mini = new GLuint[1];
+	*sizeY = new int[1];
+	count = new int(1);
+	//znajdź wszystkie pliki ".map" w folderze "maps"
+	printf("Loading maps:\n");
+	DIR *d;
+	struct dirent *dir;
+	d = opendir("maps");
+	if (d) {
+		while ((dir = readdir(d)) != NULL)
+		{
+			size_t lenstr = strlen(dir->d_name);
+			size_t lensuffix = 4;
+			if (lensuffix > lenstr)
+				continue;
+			if (strncmp(dir->d_name + lenstr - lensuffix, ".map", lensuffix) == 0)
+			{
+				//czytaj zawartość pliku ".map"
+				printf("%s \n", dir->d_name);
+				char fn[255] = "maps/";
+				strcat_s(fn, dir->d_name);
+				FILE *fp;
+				fopen_s(&fp, fn, "r");
+				char buffer[255];
+				if (fp == NULL)
+				{
+					printf("The file didn't opened\n");
+					break;
+				}
+				else
+				{
+					int index = 0;
+					while (fgets(buffer, 255, fp))
+					{
+						if (index == 0)
+						{
+							int i = 0;
+							while (buffer[i] != '\n') i++;
+							buffer[i] = '\0';
+							printf("Nazwa : %s\n", buffer);
+							(*names)[0] = new char[255];
+							strcpy_s((*names)[0], 200, buffer);
+						}
+						else if (index == 1)
+						{
+							int i = 0;
+							while (buffer[i] != '\n') i++;
+							buffer[i] = '\0';
+							printf("Nazwa : %s\n", buffer);
+							(*sizeY)[0] = atoi(buffer);
+						}
+						else if (index == 2)
+						{
+							int i = 0;
+							while (buffer[i] != '\n') i++;
+							buffer[i] = '\0';
+							printf("Mapa : %s\n", buffer);
+							(*mapFilenames)[0] = new char[255];
+							strcpy_s((*mapFilenames)[0], 200, buffer);
+						}
+						else if (index == 3)
+						{
+							printf("Mini : %s", buffer);
+						}
+						index++;
+					}
+					fclose(fp);
+				}
+			}
+		}
+		closedir(d);
+	}
+}
+
+void readMapHeightTexture(const char* filename, int depth, vec4 *mapPos, vec3 **size) {
 	GLuint tex;
 	glActiveTexture(GL_TEXTURE0);
 
 	//Wczytanie do pamięci komputera
 	std::vector<unsigned char> image;   //Alokuj wektor do wczytania obrazka
-	unsigned width, height, depth;   //Zmienne do których wczytamy wymiary obrazka
+	unsigned width, height;   //Zmienne do których wczytamy wymiary obrazka
 	//Wczytaj obrazek
+	printf("\n Wczytywanie mapy ###%s###\n", filename);
 	unsigned error = lodepng::decode(image, width, height, filename);
 
-	printf("%s\n", filename);
-
-	depth = 10;
-
-	*size = new vec3(width, 100, height);
+	*size = new vec3(width, depth, height);
 
 	vec3 n;
 
 	for (int i = 0; i < width*height; i++)
 	{
-		//printf("%d [%d]\t", i, image[4 * i]);
-
 		mapPos[6 * i] = vec4(i / width, (image[4 * i] / 255.0f)*depth, i % width, 1.0f);
 		if (i / width != height - 1)
 			mapPos[6 * i + 1] = vec4(i / width + 1, (image[4 * (i + width)] / 255.0f)*depth, i % width, 1.0f);
@@ -204,13 +292,12 @@ void readMapHeightTexture(const char* filename, vec4 *mapPos, vec3 **size) {
 			mapPos[6 * i + 5] = vec4(i / width + 1, (image[4 * (i + 1 + width)] / 255.0f)*depth, i % width + 1, 1.0f);
 		else
 			mapPos[6 * i + 5] = vec4(i / width + 1, 0, i % width + 1, 1.0f);
-		
+
 		n = normalize(cross(vec3(mapPos[6 * i + 4]) - vec3(mapPos[6 * i + 3]), vec3(mapPos[6 * i + 5]) - vec3(mapPos[6 * i + 3])));
 
 		mapNormals[6 * i + 3] = vec4(n, 1);
 		mapNormals[6 * i + 4] = vec4(n, 1);
 		mapNormals[6 * i + 5] = vec4(n, 1);
-
 	}
 }
 
@@ -219,34 +306,7 @@ void readMapHeightTexture(const char* filename, vec4 *mapPos, vec3 **size) {
 void initOpenGLProgram(GLFWwindow* window) {
 	//************Tutaj umieszczaj kod, który należy wykonać raz, na początku programu************
 	int index = 0;
-	/*
-	vec3 n;
-	for (int i = 0; i < mapX - 1; i++)
-	{
-		for (int j = 0; j < mapY - 1; j++)
-		{
-			mapPos[index++] = vec4(i, 0, j, 1.0f);
-			mapPos[index++] = vec4(i + 1, 0, j, 1.0f);
-			mapPos[index++] = vec4(i, 0, j + 1, 1.0f);
-
-
-			mapNormals[index - 1] = vec4(n, 1);
-			mapNormals[index - 2] = vec4(n, 1);
-			mapNormals[index - 3] = vec4(n, 1);
-
-			mapPos[index++] = vec4(i + 1, 0, j, 1.0f);
-			mapPos[index++] = vec4(i, 0, j + 1, 1.0f);
-			mapPos[index++] = vec4(i + 1, 0, j + 1, 1.0f);
-
-			n = normalize(cross(vec3(mapPos[index - 1]) - vec3(mapPos[index - 3]), vec3(mapPos[index - 1]) - vec3(mapPos[index - 2])));
-
-			mapNormals[index - 1] = vec4(n, 1);
-			mapNormals[index - 2] = vec4(n, 1);
-			mapNormals[index - 3] = vec4(n, 1);
-		}
-	}
-	*/
-
+	
 	glClearColor(0, 0, 0, 1);
 	glEnable(GL_DEPTH_TEST);
 	glfwSetWindowSizeCallback(window, windowResizeCallback);
@@ -259,7 +319,13 @@ void initOpenGLProgram(GLFWwindow* window) {
 	spMap = new ShaderProgram("shaders/mapVS.glsl", NULL, "shaders/mapFS.glsl");
 	tex0 = readTexture("textures/metal.png");
 	tex1 = readTexture("textures/metal_spec.png");
-	readMapHeightTexture("maps/map1.png", mapPos, &mapSize);
+
+	const char * map = "maps/map1.png";
+
+	readMapList(&filenames, &mapFilenames, &names, &mini, &sizeY, &count);
+
+	readMapHeightTexture(mapFilenames[0], sizeY[0], mapPos, &mapSize);
+	
 }
 
 

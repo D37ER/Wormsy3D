@@ -112,7 +112,7 @@ static void cursor_position_callback(GLFWwindow* window, double xpos, double ypo
 		rot_y -= 2 * PI;
 	while (rot_y < 0)
 		rot_y += 2 * PI;
-	printf("%f %f %f %f \n", (float)rot_x, (float)rot_y, (float)cos(rot_y), (float)sin(rot_y));
+	//printf("%f %f %f %f \n", (float)rot_x, (float)rot_y, (float)cos(rot_y), (float)sin(rot_y));
 }
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
@@ -159,41 +159,58 @@ void readMapHeightTexture(const char* filename, vec4 *mapPos, vec3 **size) {
 
 	//Wczytanie do pamięci komputera
 	std::vector<unsigned char> image;   //Alokuj wektor do wczytania obrazka
-	unsigned width, height;   //Zmienne do których wczytamy wymiary obrazka
+	unsigned width, height, depth;   //Zmienne do których wczytamy wymiary obrazka
 	//Wczytaj obrazek
 	unsigned error = lodepng::decode(image, width, height, filename);
 
 	printf("%s\n", filename);
 
-	*size = new vec3(width, 10.0f, height);
+	depth = 10;
+
+	*size = new vec3(width, 100, height);
+
+	vec3 n;
 
 	for (int i = 0; i < width*height; i++)
 	{
-		printf("%d [%d]\t", i, image[4 * i]);
+		//printf("%d [%d]\t", i, image[4 * i]);
 
-		mapPos[6 * i] = vec4(i / width, image[4 * i] / 255.0f, i % width, 1.0f);
+		mapPos[6 * i] = vec4(i / width, (image[4 * i] / 255.0f)*depth, i % width, 1.0f);
 		if (i / width != height - 1)
-			mapPos[6 * i + 1] = vec4(i / width + 1, image[4 * (i + width)] / 255.0f, i % width, 1.0f);
+			mapPos[6 * i + 1] = vec4(i / width + 1, (image[4 * (i + width)] / 255.0f)*depth, i % width, 1.0f);
 		else
 			mapPos[6 * i + 1] = vec4(i / width + 1, 0, i % width, 1.0f);
 		if (i % width != width - 1)
-			mapPos[6 * i + 2] = vec4(i / width, image[4 * (i + 1)] / 255.0f, i % width + 1, 1.0f);
+			mapPos[6 * i + 2] = vec4(i / width, (image[4 * (i + 1)] / 255.0f)*depth, i % width + 1, 1.0f);
 		else
 			mapPos[6 * i + 2] = vec4(i / width, 0, i % width + 1, 1.0f);
 
+		n = normalize(cross(vec3(mapPos[6 * i + 2]) - vec3(mapPos[6 * i]), vec3(mapPos[6 * i + 1]) - vec3(mapPos[6 * i])));
+
+		mapNormals[6 * i] = vec4(n, 1);
+		mapNormals[6 * i + 1] = vec4(n, 1);
+		mapNormals[6 * i + 2] = vec4(n, 1);
+
+
 		if (i / width != height - 1)
-			mapPos[6 * i + 3] = vec4(i / width + 1, image[4 * (i + width)] / 255.0f, i % width, 1.0f);
+			mapPos[6 * i + 3] = vec4(i / width + 1, (image[4 * (i + width)] / 255.0f)*depth, i % width, 1.0f);
 		else
 			mapPos[6 * i + 3] = vec4(i / width + 1, 0, i % width, 1.0f);
 		if (i % width != width - 1)
-			mapPos[6 * i + 4] = vec4(i / width, image[4 * (i + 1)] / 255.0f, i % width + 1, 1.0f);
+			mapPos[6 * i + 4] = vec4(i / width, (image[4 * (i + 1)] / 255.0f)*depth, i % width + 1, 1.0f);
 		else
 			mapPos[6 * i + 4] = vec4(i / width, 0, i % width + 1, 1.0f);
 		if (i / width != height - 1 && i % width != width - 1)
-			mapPos[6 * i + 5] = vec4(i / width + 1, image[4 * (i + 1 + width)] / 255.0f, i % width + 1, 1.0f);
+			mapPos[6 * i + 5] = vec4(i / width + 1, (image[4 * (i + 1 + width)] / 255.0f)*depth, i % width + 1, 1.0f);
 		else
 			mapPos[6 * i + 5] = vec4(i / width + 1, 0, i % width + 1, 1.0f);
 		
+		n = normalize(cross(vec3(mapPos[6 * i + 4]) - vec3(mapPos[6 * i + 3]), vec3(mapPos[6 * i + 5]) - vec3(mapPos[6 * i + 3])));
+
+		mapNormals[6 * i + 3] = vec4(n, 1);
+		mapNormals[6 * i + 4] = vec4(n, 1);
+		mapNormals[6 * i + 5] = vec4(n, 1);
+
 	}
 }
 
@@ -330,7 +347,7 @@ void drawScene(GLFWwindow* window) {
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, tex2);
 
-	printf("############## %d %d", mapSize->x, mapSize->z);
+	//printf("############## %d %d", mapSize->x, mapSize->z);
 
 	glDrawArrays(GL_TRIANGLES, 0, mapSize->x*(mapSize->z) * 6); //Narysuj obiekt
 
@@ -399,7 +416,7 @@ int main(void)
 			while (player_rot_y < 0)
 				player_rot_y += 2 * PI;
 
-			printf("%f %f \n", player_rot_y, rot_y);
+			//printf("%f %f \n", player_rot_y, rot_y);
 		}
 
 		glfwSetTime(0); //Zeruj timer

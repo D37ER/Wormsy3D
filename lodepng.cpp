@@ -70,7 +70,7 @@ static void* lodepng_malloc(size_t size)
 
 static void* lodepng_realloc(void* ptr, size_t new_size)
 {
-  return realloc(ptr, new_size);
+  return realloc( ptr, new_size);
 }
 
 static void lodepng_free(void* ptr)

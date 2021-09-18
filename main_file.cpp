@@ -49,6 +49,7 @@ float rot_x;
 float rot_y;
 float camera_distance = 30;
 
+//gracz
 bool moving_forward = false;
 float player_speed_rot = 1;
 float player_speed_rot_y = 0;
@@ -70,9 +71,18 @@ int * sizeY;
 int count;
 
 //mapa
+int chosenMap = 2;
 vec3 *mapSize;
 vec4 mapPos[60000];
 vec4 mapNormals[60000];
+
+//pocisk
+bool exist = true;
+vec2 projectileRot = vec2(1,1);
+float projectileSpeed = 50;
+float fallingSpeed = 1;
+vec3 projectileLoc = vec3(50, 10, 50);
+
 
 //okno
 int windowHeight = 900;
@@ -105,6 +115,12 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 		if (key == GLFW_KEY_D) speed_x = -speed;
 		if (key == GLFW_KEY_W) speed_z = speed;
 		if (key == GLFW_KEY_S) speed_z = -speed;
+		if (key == GLFW_KEY_X)
+		{
+			exist = true;
+			projectileRot = vec2(rot_x + PI/4.0f, rot_y);
+			projectileLoc = vec3(pos_x, pos_y, pos_z);
+		}
 	}
 	if (action == GLFW_RELEASE) {
 		if (key == GLFW_KEY_A) speed_x = 0;
@@ -169,18 +185,19 @@ GLuint readTexture(const char* filename) {
 
 void readMapList(char ***filenames, char ***mapFilenames, char *** names, GLuint ** mini, int ** sizeY, int * count)
 {
-	*filenames = new char *[1];
-	*mapFilenames = new char *[1];
-	*names = new char *[1];
-	*mini = new GLuint[1];
-	*sizeY = new int[1];
-	count = new int(1);
+	*filenames = new char *[3];
+	*mapFilenames = new char *[3];
+	*names = new char *[3];
+	*mini = new GLuint[3];
+	*sizeY = new int[3];
+	count = new int(3);
 	//znajdź wszystkie pliki ".map" w folderze "maps"
 	printf("Loading maps:\n");
 	DIR *d;
 	struct dirent *dir;
 	d = opendir("maps");
 	if (d) {
+		int mapsCount = 0;
 		while ((dir = readdir(d)) != NULL)
 		{
 			size_t lenstr = strlen(dir->d_name);
@@ -209,37 +226,45 @@ void readMapList(char ***filenames, char ***mapFilenames, char *** names, GLuint
 						if (index == 0)
 						{
 							int i = 0;
-							while (buffer[i] != '\n') i++;
+							while (buffer[i] != '\n' && buffer[i] != '\0') i++;
 							buffer[i] = '\0';
 							printf("Nazwa : %s\n", buffer);
-							(*names)[0] = new char[255];
-							strcpy_s((*names)[0], 200, buffer);
+							(*names)[mapsCount] = new char[255];
+							strcpy_s((*names)[mapsCount], 200, buffer);
 						}
 						else if (index == 1)
 						{
 							int i = 0;
-							while (buffer[i] != '\n') i++;
+							while (buffer[i] != '\n' && buffer[i] != '\0') i++;
 							buffer[i] = '\0';
 							printf("Nazwa : %s\n", buffer);
-							(*sizeY)[0] = atoi(buffer);
+							(*sizeY)[mapsCount] = atoi(buffer);
 						}
 						else if (index == 2)
 						{
 							int i = 0;
-							while (buffer[i] != '\n') i++;
+							while (buffer[i] != '\n' && buffer[i] != '\0') i++;
 							buffer[i] = '\0';
 							printf("Mapa : %s\n", buffer);
-							(*mapFilenames)[0] = new char[255];
-							strcpy_s((*mapFilenames)[0], 200, buffer);
+							(*mapFilenames)[mapsCount] = new char[255];
+							strcpy_s((*mapFilenames)[mapsCount], 200, buffer);
 						}
 						else if (index == 3)
 						{
-							printf("Mini : %s", buffer);
+							int i = 0;
+							while (buffer[i] != '\n' && buffer[i] != '\0') i++;
+							buffer[i] = '\0';
+							
+							char fn2[255] = "maps/";
+							strcat_s(fn2, buffer);
+							printf("Mini : %s\n", fn2);
+							(*mini)[mapsCount] = readTexture(fn2);
 						}
 						index++;
 					}
-					fclose(fp);
 				}
+				fclose(fp);
+				mapsCount++;
 			}
 		}
 		closedir(d);
@@ -324,7 +349,7 @@ void initOpenGLProgram(GLFWwindow* window) {
 
 	readMapList(&filenames, &mapFilenames, &names, &mini, &sizeY, &count);
 
-	readMapHeightTexture(mapFilenames[0], sizeY[0], mapPos, &mapSize);
+	readMapHeightTexture(mapFilenames[chosenMap], sizeY[chosenMap], mapPos, &mapSize);
 	
 }
 
@@ -364,6 +389,88 @@ void drawScene(GLFWwindow* window) {
 
 
 
+
+	sp->use();//Aktywacja programu cieniującego
+	//Przeslij parametry programu cieniującego do karty graficznej
+	glUniformMatrix4fv(sp->u("P"), 1, false, value_ptr(P));
+	glUniformMatrix4fv(sp->u("V"), 1, false, value_ptr(V));
+	glUniformMatrix4fv(sp->u("M"), 1, false, value_ptr(M));
+
+	glEnableVertexAttribArray(sp->a("vertex"));  //Włącz przesyłanie danych do atrybutu vertex
+	glVertexAttribPointer(sp->a("vertex"), 4, GL_FLOAT, false, 0, vertices); //Wskaż tablicę z danymi dla atrybutu vertex
+
+	glEnableVertexAttribArray(sp->a("color"));  //Włącz przesyłanie danych do atrybutu color
+	glVertexAttribPointer(sp->a("color"), 4, GL_FLOAT, false, 0, colors); //Wskaż tablicę z danymi dla atrybutu color
+
+	glEnableVertexAttribArray(sp->a("normal"));  //Włącz przesyłanie danych do atrybutu normal
+	glVertexAttribPointer(sp->a("normal"), 4, GL_FLOAT, false, 0, normals); //Wskaż tablicę z danymi dla atrybutu normal
+
+	glEnableVertexAttribArray(sp->a("texCoord0"));  //Włącz przesyłanie danych do atrybutu texCoord
+	glVertexAttribPointer(sp->a("texCoord0"), 2, GL_FLOAT, false, 0, texCoords); //Wskaż tablicę z danymi dla atrybutu texCoord
+
+	glUniform1i(sp->u("textureMap0"), 0);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, tex0);
+
+	glUniform1i(sp->u("textureMap1"), 1);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, tex1);
+
+	glDrawArrays(GL_TRIANGLES, 0, vertexCount); //Narysuj obiekt
+
+	glDisableVertexAttribArray(sp->a("vertex"));  //Wyłącz przesyłanie danych do atrybutu vertex
+	glDisableVertexAttribArray(sp->a("color"));  //Wyłącz przesyłanie danych do atrybutu color
+	glDisableVertexAttribArray(sp->a("normal"));  //Wyłącz przesyłanie danych do atrybutu normal
+	glDisableVertexAttribArray(sp->a("texCoord0"));  //Wyłącz przesyłanie danych do atrybutu texCoord0
+
+	//działo
+
+	M = mat4(1.0f);
+	M = translate(M, vec3(pos_x, pos_y+2.0f, pos_z)); //Wylicz macierz modelu
+	M = rotate(M, rot_y, vec3(0, 1, 0)); //Wylicz macierz modelu
+	M = rotate(M, rot_x + PI/4.0f, vec3(1, 0, 0)); //Wylicz macierz modelu
+
+
+	sp->use();//Aktywacja programu cieniującego
+	//Przeslij parametry programu cieniującego do karty graficznej
+	glUniformMatrix4fv(sp->u("P"), 1, false, value_ptr(P));
+	glUniformMatrix4fv(sp->u("V"), 1, false, value_ptr(V));
+	glUniformMatrix4fv(sp->u("M"), 1, false, value_ptr(M));
+
+	glEnableVertexAttribArray(sp->a("vertex"));  //Włącz przesyłanie danych do atrybutu vertex
+	glVertexAttribPointer(sp->a("vertex"), 4, GL_FLOAT, false, 0, vertices); //Wskaż tablicę z danymi dla atrybutu vertex
+
+	glEnableVertexAttribArray(sp->a("color"));  //Włącz przesyłanie danych do atrybutu color
+	glVertexAttribPointer(sp->a("color"), 4, GL_FLOAT, false, 0, colors); //Wskaż tablicę z danymi dla atrybutu color
+
+	glEnableVertexAttribArray(sp->a("normal"));  //Włącz przesyłanie danych do atrybutu normal
+	glVertexAttribPointer(sp->a("normal"), 4, GL_FLOAT, false, 0, normals); //Wskaż tablicę z danymi dla atrybutu normal
+
+	glEnableVertexAttribArray(sp->a("texCoord0"));  //Włącz przesyłanie danych do atrybutu texCoord
+	glVertexAttribPointer(sp->a("texCoord0"), 2, GL_FLOAT, false, 0, texCoords); //Wskaż tablicę z danymi dla atrybutu texCoord
+
+	glUniform1i(sp->u("textureMap0"), 0);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, tex0);
+
+	glUniform1i(sp->u("textureMap1"), 1);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, tex1);
+
+	glDrawArrays(GL_TRIANGLES, 0, vertexCount); //Narysuj obiekt
+
+	glDisableVertexAttribArray(sp->a("vertex"));  //Wyłącz przesyłanie danych do atrybutu vertex
+	glDisableVertexAttribArray(sp->a("color"));  //Wyłącz przesyłanie danych do atrybutu color
+	glDisableVertexAttribArray(sp->a("normal"));  //Wyłącz przesyłanie danych do atrybutu normal
+	glDisableVertexAttribArray(sp->a("texCoord0"));  //Wyłącz przesyłanie danych do atrybutu texCoord0
+
+	//pocisk
+
+	M = mat4(1.0f);
+	M = translate(M, projectileLoc); //Wylicz macierz modelu
+	M = rotate(M, projectileRot.y, vec3(0, 1, 0)); //Wylicz macierz modelu
+	M = rotate(M, projectileRot.x, vec3(1, 0, 0)); //Wylicz macierz modelu
+	
 
 	sp->use();//Aktywacja programu cieniującego
 	//Przeslij parametry programu cieniującego do karty graficznej
@@ -458,13 +565,24 @@ int main(void)
 	glfwSetTime(0); //Zeruj timer
 	while (!glfwWindowShouldClose(window)) //Tak długo jak okno nie powinno zostać zamknięte
 	{
-		pos_y += speed_y * glfwGetTime(); //Zwiększ/zmniejsz pozycje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
+		//pos_y += speed_y * glfwGetTime(); //Zwiększ/zmniejsz pozycje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
 
 		pos_x += sin(player_rot_y + PI / 2.0f)*speed_x * glfwGetTime(); //Zwiększ/zmniejsz pozycje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
 		pos_z += cos(player_rot_y + PI / 2.0f)*speed_x * glfwGetTime(); //Zwiększ/zmniejsz pozycje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
 
 		pos_x += sin(player_rot_y)*speed_z * glfwGetTime(); //Zwiększ/zmniejsz pozycje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
 		pos_z += cos(player_rot_y)*speed_z * glfwGetTime(); //Zwiększ/zmniejsz pozycje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
+		
+		pos_y = mapPos[(int)(6 * ((int)pos_z + mapSize->x*((int)pos_x)))].y + 1.0f;
+		
+		projectileLoc.x += sin(projectileRot.x)*sin(projectileRot.y)*projectileSpeed * glfwGetTime(); //Zwiększ/zmniejsz pozycje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
+		projectileLoc.z += sin(projectileRot.x)*cos(projectileRot.y)*projectileSpeed * glfwGetTime(); //Zwiększ/zmniejsz pozycje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
+		projectileLoc.y += cos(projectileRot.x)*projectileSpeed * glfwGetTime();
+		
+		projectileRot.x += fallingSpeed * glfwGetTime();
+		if (projectileRot.x > PI)
+			projectileRot.x = PI;
+
 		if (speed_z != 0)
 		{
 			if (rot_y - player_rot_y < 0.05 && rot_y - player_rot_y > -0.05)

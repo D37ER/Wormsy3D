@@ -4,10 +4,10 @@ Projekt PUT GKiW
 ## TODO
 
 - [x] mapa z plików
-- [ ] wybór mapy
+- [x] wybór mapy
 - [ ] wiele plików z kodem (obiektówka, zmiana nazwy projektu)
 - [x] chodzenie "po mapie"
-- [ ] pociski po krzywej
+- [x] pociski po krzywej
 - [ ] interakcja pocisk-teren
 - [ ] efekty interakcji pocisk-teren
 - [ ] przeciwnicy i inni gracze

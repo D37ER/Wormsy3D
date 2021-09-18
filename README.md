@@ -3,7 +3,8 @@ Projekt PUT GKiW
 
 ## TODO
 
-- [ ] mapa z plików
+- [x] mapa z plików
+- [ ] wybór mapy
 - [ ] wiele plików z kodem (obiektówka, zmiana nazwy projektu)
 - [x] chodzenie "po mapie"
 - [ ] pociski po krzywej

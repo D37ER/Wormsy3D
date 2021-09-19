@@ -16,6 +16,9 @@ Projekt PUT GKiW
 - [ ] przeciwnicy i inni gracze
 - [ ] punkty życia
 - [ ] gui
-- [ ] cegły (na mapie)
-- [ ] fizyka cegieł i niszczenie 
-- [ ] menu
+
+### dodatkowo
+
+- [ ]  cegły (na mapie)
+- [ ]  fizyka cegieł i niszczenie 
+- [ ]  menu

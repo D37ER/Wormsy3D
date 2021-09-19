@@ -45,8 +45,8 @@ using namespace glm;
 
 
 //kamera
-float rot_x;
-float rot_y;
+float cam_rot_x;
+float cam_rot_y;
 float camera_distance = 30;
 
 //gracz
@@ -61,6 +61,12 @@ float speed = 2;
 float speed_x = 0;
 float speed_y = 0;
 float speed_z = 0;
+
+//działo
+float turret_rot_x;
+float turret_rot_y;
+float turret_speed_y = 1;
+float turret_speed_x = 0.5f;
 
 //mapy
 char **filenames;
@@ -77,12 +83,17 @@ vec4 mapPos[60000];
 vec4 mapNormals[60000];
 
 //pocisk
-bool exist = true;
+bool projectileExist = false;
 vec2 projectileRot = vec2(1,1);
 float projectileSpeed = 50;
 float fallingSpeed = 1;
 vec3 projectileLoc = vec3(50, 10, 50);
 
+//trajektoria
+bool showTrajectory = true;
+float trajectoryTime = 0.5f;
+int trajectoryCount = 5;
+float trajectorySize = 0.2f;
 
 //okno
 int windowHeight = 900;
@@ -115,10 +126,10 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 		if (key == GLFW_KEY_D) speed_x = -speed;
 		if (key == GLFW_KEY_W) speed_z = speed;
 		if (key == GLFW_KEY_S) speed_z = -speed;
-		if (key == GLFW_KEY_X)
+		if (key == GLFW_KEY_X && !projectileExist)
 		{
-			exist = true;
-			projectileRot = vec2(rot_x + PI/4.0f, rot_y);
+			projectileExist = true;
+			projectileRot = vec2(turret_rot_x + PI/4.0f, turret_rot_y + player_rot_y - PI/2);
 			projectileLoc = vec3(pos_x, pos_y, pos_z);
 		}
 	}
@@ -132,16 +143,16 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 
 static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
 {
-	rot_x = (float)ypos / 100.0f;
-	rot_y = (float)xpos / 100.0f;
-	while (rot_x > 2 * PI)
-		rot_x -= 2 * PI;
-	while (rot_x < 0)
-		rot_x += 2 * PI;
-	while (rot_y > 2 * PI)
-		rot_y -= 2 * PI;
-	while (rot_y < 0)
-		rot_y += 2 * PI;
+	cam_rot_x = (float)ypos / 100.0f;
+	cam_rot_y = (float)xpos / 100.0f;
+	while (cam_rot_x > 2 * PI)
+		cam_rot_x -= 2 * PI;
+	while (cam_rot_x < 0)
+		cam_rot_x += 2 * PI;
+	while (cam_rot_y > 2 * PI)
+		cam_rot_y -= 2 * PI;
+	while (cam_rot_y < 0)
+		cam_rot_y += 2 * PI;
 	//printf("%f %f %f %f \n", (float)rot_x, (float)rot_y, (float)cos(rot_y), (float)sin(rot_y));
 }
 
@@ -375,19 +386,19 @@ void drawScene(GLFWwindow* window) {
 		vec3(0, 0, 0),
 		vec3(0.0f, 1.0f, 0.0f)); //Wylicz macierz widoku
 
-	V = rotate(V, -rot_x, vec3(1.0f, 0.0f, 0.0f));
-	V = rotate(V, -rot_y, vec3(0.0f, 1.0f, 0.0f));
+	V = rotate(V, -cam_rot_x, vec3(1.0f, 0.0f, 0.0f));
+	V = rotate(V, -cam_rot_y, vec3(0.0f, 1.0f, 0.0f));
 	V = translate(V, vec3(-pos_x, -pos_y, -pos_z));
 
 	//printf("pos: \n %f %f %f %f \n %f %f %f %f \n %f %f %f %f \n %f %f %f %f \n", V[0][0], V[0][1], V[0][2], V[0][3], V[1][0], V[1][1], V[1][2], V[1][3], V[2][0], V[2][1], V[2][2], V[2][3], V[3][0], V[3][1], V[3][2], V[3][3]);
 
 	mat4 P = perspective(fov*PI / 180.0f, aspectRatio, 0.01f, 200.0f); //Wylicz macierz rzutowania
 
+	//gracz
+
 	mat4 M = mat4(1.0f);
 	M = translate(M, vec3(pos_x, pos_y, pos_z)); //Wylicz macierz modelu
 	M = rotate(M, player_rot_y, vec3(0, 1, 0)); //Wylicz macierz modelu
-
-
 
 
 	sp->use();//Aktywacja programu cieniującego
@@ -425,10 +436,9 @@ void drawScene(GLFWwindow* window) {
 
 	//działo
 
-	M = mat4(1.0f);
-	M = translate(M, vec3(pos_x, pos_y+2.0f, pos_z)); //Wylicz macierz modelu
-	M = rotate(M, rot_y, vec3(0, 1, 0)); //Wylicz macierz modelu
-	M = rotate(M, rot_x + PI/4.0f, vec3(1, 0, 0)); //Wylicz macierz modelu
+	M = translate(M, vec3(0, 2.0f, 0)); //Wylicz macierz modelu
+	M = rotate(M, turret_rot_y, vec3(0, 1, 0)); //Wylicz macierz modelu
+	M = rotate(M, turret_rot_x + PI/4.0f, vec3(0, 0, 1)); //Wylicz macierz modelu
 
 
 	sp->use();//Aktywacja programu cieniującego
@@ -463,48 +473,98 @@ void drawScene(GLFWwindow* window) {
 	glDisableVertexAttribArray(sp->a("color"));  //Wyłącz przesyłanie danych do atrybutu color
 	glDisableVertexAttribArray(sp->a("normal"));  //Wyłącz przesyłanie danych do atrybutu normal
 	glDisableVertexAttribArray(sp->a("texCoord0"));  //Wyłącz przesyłanie danych do atrybutu texCoord0
+
+	//trajektoria
+
+	for (int i = 0; i < trajectoryCount; i++)
+	{
+		M = rotate(M, fallingSpeed*(trajectoryTime / trajectoryCount), vec3(0, 0, 1)); //Wylicz macierz modelu
+		M = translate(M, vec3(0, projectileSpeed*(trajectoryTime / trajectoryCount), 0)); //Wylicz macierz modelu
+		M = scale(M, vec3(trajectorySize, trajectorySize, trajectorySize));
+		sp->use();//Aktywacja programu cieniującego
+		//Przeslij parametry programu cieniującego do karty graficznej
+		glUniformMatrix4fv(sp->u("P"), 1, false, value_ptr(P));
+		glUniformMatrix4fv(sp->u("V"), 1, false, value_ptr(V));
+		glUniformMatrix4fv(sp->u("M"), 1, false, value_ptr(M));
+
+		M = scale(M, vec3(1 / trajectorySize, 1 / trajectorySize, 1 / trajectorySize));
+
+		glEnableVertexAttribArray(sp->a("vertex"));  //Włącz przesyłanie danych do atrybutu vertex
+		glVertexAttribPointer(sp->a("vertex"), 4, GL_FLOAT, false, 0, vertices); //Wskaż tablicę z danymi dla atrybutu vertex
+
+		glEnableVertexAttribArray(sp->a("color"));  //Włącz przesyłanie danych do atrybutu color
+		glVertexAttribPointer(sp->a("color"), 4, GL_FLOAT, false, 0, colors); //Wskaż tablicę z danymi dla atrybutu color
+
+		glEnableVertexAttribArray(sp->a("normal"));  //Włącz przesyłanie danych do atrybutu normal
+		glVertexAttribPointer(sp->a("normal"), 4, GL_FLOAT, false, 0, normals); //Wskaż tablicę z danymi dla atrybutu normal
+
+		glEnableVertexAttribArray(sp->a("texCoord0"));  //Włącz przesyłanie danych do atrybutu texCoord
+		glVertexAttribPointer(sp->a("texCoord0"), 2, GL_FLOAT, false, 0, texCoords); //Wskaż tablicę z danymi dla atrybutu texCoord
+
+		glUniform1i(sp->u("textureMap0"), 0);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, tex0);
+
+		glUniform1i(sp->u("textureMap1"), 1);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, tex1);
+
+		glDrawArrays(GL_TRIANGLES, 0, vertexCount); //Narysuj obiekt
+
+		glDisableVertexAttribArray(sp->a("vertex"));  //Wyłącz przesyłanie danych do atrybutu vertex
+		glDisableVertexAttribArray(sp->a("color"));  //Wyłącz przesyłanie danych do atrybutu color
+		glDisableVertexAttribArray(sp->a("normal"));  //Wyłącz przesyłanie danych do atrybutu normal
+		glDisableVertexAttribArray(sp->a("texCoord0"));  //Wyłącz przesyłanie danych do atrybutu texCoord0
+	}
 
 	//pocisk
 
-	M = mat4(1.0f);
-	M = translate(M, projectileLoc); //Wylicz macierz modelu
-	M = rotate(M, projectileRot.y, vec3(0, 1, 0)); //Wylicz macierz modelu
-	M = rotate(M, projectileRot.x, vec3(1, 0, 0)); //Wylicz macierz modelu
+	if (projectileExist)
+	{
+		M = mat4(1.0f);
+		M = translate(M, projectileLoc); //Wylicz macierz modelu
+		M = rotate(M, projectileRot.y, vec3(0, 1, 0)); //Wylicz macierz modelu
+		M = rotate(M, projectileRot.x, vec3(1, 0, 0)); //Wylicz macierz modelu
+		M = scale(M, vec3(0.3f, 1, 0.3f));
+
+
+		sp->use();//Aktywacja programu cieniującego
+		//Przeslij parametry programu cieniującego do karty graficznej
+		glUniformMatrix4fv(sp->u("P"), 1, false, value_ptr(P));
+		glUniformMatrix4fv(sp->u("V"), 1, false, value_ptr(V));
+		glUniformMatrix4fv(sp->u("M"), 1, false, value_ptr(M));
+
+		glEnableVertexAttribArray(sp->a("vertex"));  //Włącz przesyłanie danych do atrybutu vertex
+		glVertexAttribPointer(sp->a("vertex"), 4, GL_FLOAT, false, 0, vertices); //Wskaż tablicę z danymi dla atrybutu vertex
+
+		glEnableVertexAttribArray(sp->a("color"));  //Włącz przesyłanie danych do atrybutu color
+		glVertexAttribPointer(sp->a("color"), 4, GL_FLOAT, false, 0, colors); //Wskaż tablicę z danymi dla atrybutu color
+
+		glEnableVertexAttribArray(sp->a("normal"));  //Włącz przesyłanie danych do atrybutu normal
+		glVertexAttribPointer(sp->a("normal"), 4, GL_FLOAT, false, 0, normals); //Wskaż tablicę z danymi dla atrybutu normal
+
+		glEnableVertexAttribArray(sp->a("texCoord0"));  //Włącz przesyłanie danych do atrybutu texCoord
+		glVertexAttribPointer(sp->a("texCoord0"), 2, GL_FLOAT, false, 0, texCoords); //Wskaż tablicę z danymi dla atrybutu texCoord
+
+		glUniform1i(sp->u("textureMap0"), 0);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, tex0);
+
+		glUniform1i(sp->u("textureMap1"), 1);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, tex1);
+
+		glDrawArrays(GL_TRIANGLES, 0, vertexCount); //Narysuj obiekt
+
+		glDisableVertexAttribArray(sp->a("vertex"));  //Wyłącz przesyłanie danych do atrybutu vertex
+		glDisableVertexAttribArray(sp->a("color"));  //Wyłącz przesyłanie danych do atrybutu color
+		glDisableVertexAttribArray(sp->a("normal"));  //Wyłącz przesyłanie danych do atrybutu normal
+		glDisableVertexAttribArray(sp->a("texCoord0"));  //Wyłącz przesyłanie danych do atrybutu texCoord0
+	}
 	
 
-	sp->use();//Aktywacja programu cieniującego
-	//Przeslij parametry programu cieniującego do karty graficznej
-	glUniformMatrix4fv(sp->u("P"), 1, false, value_ptr(P));
-	glUniformMatrix4fv(sp->u("V"), 1, false, value_ptr(V));
-	glUniformMatrix4fv(sp->u("M"), 1, false, value_ptr(M));
-
-	glEnableVertexAttribArray(sp->a("vertex"));  //Włącz przesyłanie danych do atrybutu vertex
-	glVertexAttribPointer(sp->a("vertex"), 4, GL_FLOAT, false, 0, vertices); //Wskaż tablicę z danymi dla atrybutu vertex
-
-	glEnableVertexAttribArray(sp->a("color"));  //Włącz przesyłanie danych do atrybutu color
-	glVertexAttribPointer(sp->a("color"), 4, GL_FLOAT, false, 0, colors); //Wskaż tablicę z danymi dla atrybutu color
-
-	glEnableVertexAttribArray(sp->a("normal"));  //Włącz przesyłanie danych do atrybutu normal
-	glVertexAttribPointer(sp->a("normal"), 4, GL_FLOAT, false, 0, normals); //Wskaż tablicę z danymi dla atrybutu normal
-
-	glEnableVertexAttribArray(sp->a("texCoord0"));  //Włącz przesyłanie danych do atrybutu texCoord
-	glVertexAttribPointer(sp->a("texCoord0"), 2, GL_FLOAT, false, 0, texCoords); //Wskaż tablicę z danymi dla atrybutu texCoord
-
-	glUniform1i(sp->u("textureMap0"), 0);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, tex0);
-
-	glUniform1i(sp->u("textureMap1"), 1);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, tex1);
-
-	glDrawArrays(GL_TRIANGLES, 0, vertexCount); //Narysuj obiekt
-
-	glDisableVertexAttribArray(sp->a("vertex"));  //Wyłącz przesyłanie danych do atrybutu vertex
-	glDisableVertexAttribArray(sp->a("color"));  //Wyłącz przesyłanie danych do atrybutu color
-	glDisableVertexAttribArray(sp->a("normal"));  //Wyłącz przesyłanie danych do atrybutu normal
-	glDisableVertexAttribArray(sp->a("texCoord0"));  //Wyłącz przesyłanie danych do atrybutu texCoord0
-
+	//mapa
+	
 	spMap->use();//Aktywacja programu cieniującego
 	//Przeslij parametry programu cieniującego do karty graficznej
 	glUniformMatrix4fv(spMap->u("P"), 1, false, value_ptr(P));
@@ -523,7 +583,7 @@ void drawScene(GLFWwindow* window) {
 	//printf("############## %d %d", mapSize->x, mapSize->z);
 
 	glDrawArrays(GL_TRIANGLES, 0, mapSize->x*(mapSize->z) * 6); //Narysuj obiekt
-
+	
 	glDisableVertexAttribArray(spMap->a("vertex"));  //Wyłącz przesyłanie danych do atrybutu vertex
 
 	glfwSwapBuffers(window); //Przerzuć tylny bufor na przedni
@@ -575,19 +635,89 @@ int main(void)
 		
 		pos_y = mapPos[(int)(6 * ((int)pos_z + mapSize->x*((int)pos_x)))].y + 1.0f;
 		
-		projectileLoc.x += sin(projectileRot.x)*sin(projectileRot.y)*projectileSpeed * glfwGetTime(); //Zwiększ/zmniejsz pozycje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
-		projectileLoc.z += sin(projectileRot.x)*cos(projectileRot.y)*projectileSpeed * glfwGetTime(); //Zwiększ/zmniejsz pozycje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
-		projectileLoc.y += cos(projectileRot.x)*projectileSpeed * glfwGetTime();
+		if (projectileExist)
+		{
+			projectileLoc.x += sin(projectileRot.x)*sin(projectileRot.y)*projectileSpeed * glfwGetTime(); //Zwiększ/zmniejsz pozycje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
+			projectileLoc.z += sin(projectileRot.x)*cos(projectileRot.y)*projectileSpeed * glfwGetTime(); //Zwiększ/zmniejsz pozycje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
+			projectileLoc.y += cos(projectileRot.x)*projectileSpeed * glfwGetTime();
+
+			projectileRot.x += fallingSpeed * glfwGetTime();
+			if (projectileRot.x > PI)
+				projectileRot.x = PI;
+
+			if (projectileLoc.y <= mapPos[(int)(6 * ((int)projectileLoc.z + mapSize->x*((int)projectileLoc.x)))].y)
+			{
+				projectileExist = false;
+				float explosion_y = mapPos[(int)(6 * ((int)projectileLoc.z + mapSize->x*((int)projectileLoc.x)))].y;
+				int id = 0, t = 0, t1 = 0, t2 = 0, t3 = 0 ;
+				vec3 n;
+				for (int i = 0; i < 10; i++)
+				{
+					for (int j = 0; j < 10; j++)
+					{
+						id = (int)(6 * ((int)projectileLoc.z - 5 + i + mapSize->x*((int)projectileLoc.x - 5 + j)));
+						t = explosion_y - 2.0f + 0.1f*((i - 5)*(i - 5) + (j - 5)*(j - 5));
+						t1 = explosion_y - 2.0f + 0.1f*((i - 4)*(i - 4) + (j - 5)*(j - 5));
+						t2 = explosion_y - 2.0f + 0.1f*((i - 5)*(i - 5) + (j - 4)*(j - 4));
+						t3 = explosion_y - 2.0f + 0.1f*((i - 4)*(i - 4) + (j - 4)*(j - 4));
+						if(mapPos[id].y > t && i != 0 && j != 0)
+							mapPos[id].y = t ;
+						if (mapPos[id + 1].y > t2 && i != 0 && j != 9)
+							mapPos[id + 1].y = t2;
+						if (mapPos[id + 2].y > t1 && i != 9 && j != 0)
+							mapPos[id + 2].y = t1;
+						if (mapPos[id + 3].y > t2 && i != 0 && j != 9)
+							mapPos[id + 3].y = t2;
+						if (mapPos[id + 4].y > t1 && i != 9 && j != 0)
+							mapPos[id + 4].y = t1;
+						if (mapPos[id + 5].y > t3 && i != 9 && j != 9)
+							mapPos[id + 5].y = t3;
+
+						n = normalize(cross(vec3(mapPos[id + 2]) - vec3(mapPos[id]), vec3(mapPos[id + 1]) - vec3(mapPos[id])));
+
+						mapNormals[id] = vec4(n, 1);
+						mapNormals[id + 1] = vec4(n, 1);
+						mapNormals[id + 2] = vec4(n, 1);
+
+						n = normalize(cross(vec3(mapPos[id + 4]) - vec3(mapPos[id + 3]), vec3(mapPos[id + 5]) - vec3(mapPos[id + 3])));
+
+						mapNormals[id + 3] = vec4(n, 1);
+						mapNormals[id + 4] = vec4(n, 1);
+						mapNormals[id + 5] = vec4(n, 1);
+					}
+				}
+			}
+		}
 		
-		projectileRot.x += fallingSpeed * glfwGetTime();
-		if (projectileRot.x > PI)
-			projectileRot.x = PI;
+
+		if (turret_rot_x > cam_rot_x + 2 * turret_speed_x* glfwGetTime())
+			turret_rot_x -= turret_speed_x * glfwGetTime();
+		else if (turret_rot_x < cam_rot_x - 2 * turret_speed_x* glfwGetTime())
+			turret_rot_x += turret_speed_x * glfwGetTime();
+
+		if (turret_rot_x > 0.25f * PI && turret_rot_x < PI)
+			turret_rot_x = 0.25f * PI;
+		if (turret_rot_x > PI && turret_rot_x < 1.75f*PI)
+			turret_rot_x = 1.75f*PI;
+
+		printf("%f \t %f \t \t %f %f\n", turret_rot_y, player_rot_y, turret_rot_y + player_rot_y, cam_rot_y);
+
+
+		if (turret_rot_y + player_rot_y - PI/2 > cam_rot_y + 2* turret_speed_y* glfwGetTime())
+			turret_rot_y -= turret_speed_y * glfwGetTime();
+		else if (turret_rot_y + player_rot_y - PI / 2 < cam_rot_y - 2 * turret_speed_y* glfwGetTime())
+			turret_rot_y += turret_speed_y * glfwGetTime();
+
+		if (turret_rot_y < 0)
+			turret_rot_y = 0;
+		if (turret_rot_y > PI)
+			turret_rot_y = PI;
 
 		if (speed_z != 0)
 		{
-			if (rot_y - player_rot_y < 0.05 && rot_y - player_rot_y > -0.05)
+			if (cam_rot_y - player_rot_y < 0.05 && cam_rot_y - player_rot_y > -0.05)
 				player_speed_rot_y = 0;
-			else if (rot_y - player_rot_y >= PI || (rot_y - player_rot_y <= 0 && rot_y - player_rot_y > -PI))
+			else if (cam_rot_y - player_rot_y >= PI || (cam_rot_y - player_rot_y <= 0 && cam_rot_y - player_rot_y > -PI))
 				player_speed_rot_y = -player_speed_rot;
 			else
 				player_speed_rot_y = player_speed_rot;

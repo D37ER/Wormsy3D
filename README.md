@@ -10,6 +10,7 @@ Projekt PUT GKiW
 - [x] pociski po krzywej
 - [x] interakcja pocisk-teren
 - [ ] efekty interakcji pocisk-teren
+- [ ] niebo i woda
 - [ ] wczytywanie obiektów 3d (żółw, rakieta, turret)
 - [ ] wiatr
 - [ ] przeciwnicy i inni gracze

@@ -8,7 +8,7 @@ Projekt PUT GKiW
 - [ ] wiele plików z kodem (obiektówka, zmiana nazwy projektu)
 - [x] chodzenie "po mapie"
 - [x] pociski po krzywej
-- [ ] interakcja pocisk-teren
+- [x] interakcja pocisk-teren
 - [ ] efekty interakcji pocisk-teren
 - [ ] przeciwnicy i inni gracze
 - [ ] punkty życia

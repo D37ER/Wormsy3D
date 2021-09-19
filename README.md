@@ -12,6 +12,7 @@ Projekt PUT GKiW
 - [ ] efekty interakcji pocisk-teren
 - [ ] wczytywanie obiektów 3d (żółw, rakieta, turret)
 - [ ] tekstura mapy (multitekstura z tekstórą wyboru)
+- [ ] wiatr
 - [ ] przeciwnicy i inni gracze
 - [ ] punkty życia
 - [ ] gui

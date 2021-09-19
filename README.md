@@ -16,6 +16,9 @@ Projekt PUT GKiW
 - [ ] punkty życia
 - [ ] gui
 
+### poprawki
+- [ ] poprawa ruchu turreta
+
 ### dodatkowo
 - [ ] tekstura mapy (multitekstura z tekstórą wyboru)
 - [ ]  cegły (na mapie)

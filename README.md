@@ -10,6 +10,7 @@ Projekt PUT GKiW
 - [x] pociski po krzywej
 - [x] interakcja pocisk-teren
 - [ ] efekty interakcji pocisk-teren
+- [ ] wczytywanie obiektów 3d (żółw, rakieta, turret)
 - [ ] przeciwnicy i inni gracze
 - [ ] punkty życia
 - [ ] gui

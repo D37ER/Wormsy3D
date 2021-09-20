@@ -8,11 +8,21 @@ Projekt PUT GKiW
 - [ ] wiele plików z kodem (obiektówka, zmiana nazwy projektu)
 - [x] chodzenie "po mapie"
 - [x] pociski po krzywej
-- [ ] interakcja pocisk-teren
+- [x] interakcja pocisk-teren
 - [ ] efekty interakcji pocisk-teren
+- [ ] wczytywanie obiektów 3d (żółw, rakieta, turret)
+- [ ] wiatr
 - [ ] przeciwnicy i inni gracze
 - [ ] punkty życia
 - [ ] gui
-- [ ] cegły (na mapie)
-- [ ] fizyka cegieł i niszczenie 
-- [ ] menu
+
+### poprawki
+- [ ] poprawa ruchu turreta
+
+### dodatkowo
+- [ ] niebo i woda
+- [ ] obiekty na planszy (palmy)
+- [ ] tekstura mapy (multitekstura z tekstórą wyboru)
+- [ ]  cegły (na mapie)
+- [ ]  fizyka cegieł i niszczenie 
+- [ ]  menu

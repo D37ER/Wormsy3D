@@ -22,7 +22,7 @@ Projekt PUT GKiW
 ### dodatkowo
 - [ ] niebo i woda
 - [ ] obiekty na planszy (palmy)
-- [ ] tekstura mapy (multitekstura z tekstórą wyboru)
+- [ ] tekstura mapy (multitekstura z teksturą wyboru)
 - [ ]  cegły (na mapie)
 - [ ]  fizyka cegieł i niszczenie 
 - [ ]  menu

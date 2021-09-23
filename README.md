@@ -5,7 +5,7 @@ Projekt PUT GKiW
 
 - [x] mapa z plików
 - [x] wybór mapy
-- [ ] :exclamation: wiele plików z kodem (obiektówka, zmiana nazwy projektu)
+- [ ] :exclamation::exclamation::exclamation: wiele plików z kodem (obiektówka, zmiana nazwy projektu)
 - [x] chodzenie "po mapie"
 - [x] pociski po krzywej
 - [x] interakcja pocisk-teren

@@ -100,6 +100,14 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 		float size = 0.2f;
 	};
 
+	struct Explosion
+	{
+		vec3 pos;
+		float size = 0;
+		float MAX_SIZE = 5;
+		float EXPANSION_SPEED = 20;
+	};
+
 	struct Window
 	{
 		int height = 900;
@@ -130,6 +138,7 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 	extern float PROJECTILE_FALLING_SPEED;
 	extern Projectile * projectile;
 	extern Trajectory * trajectory;
+	extern Explosion * explosion;
 	extern Window * gameWindow;
 
 	extern ShaderProgram *spObjects, *spMap;
@@ -143,6 +152,7 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 	extern Object * turretObj;
 	extern Object * trajectoryObj;
 	extern Object * projectileObj;
+	extern Object * explosionObj;
 
 
 //procedury wydarzeñ

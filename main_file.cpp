@@ -38,6 +38,7 @@ float PROJECTILE_FORWARD_SPEED = 50;
 float PROJECTILE_FALLING_SPEED = 1;
 Projectile * projectile;
 Trajectory * trajectory;
+Explosion * explosion;
 Window * gameWindow;
 
 ShaderProgram *spObjects, *spMap;
@@ -51,6 +52,7 @@ Object * playerObj;
 Object * turretObj;
 Object * trajectoryObj;
 Object * projectileObj;
+Object * explosionObj;
 
 //zmienne w obrębie main_file.cpp
 
@@ -81,6 +83,7 @@ void initOpenGLProgram(GLFWwindow* window)
 	turretObj = loadObject();
 	trajectoryObj = loadObject();
 	projectileObj = loadObject();
+	explosionObj = loadObject();
 
 	readMapList(MAP_FILES_LOCATION, &mapList, &mapListSize);
 	loadMap(mapList, chosenMap, &loadedMap);
@@ -180,6 +183,15 @@ void drawScene(GLFWwindow* window)
 		M = scale(M, vec3(0.3f, 1, 0.3f));
 		drawObject(P, V, M, projectileObj);
 	}
+
+	//explozja
+	if (explosion)
+	{
+		M = mat4(1.0f);
+		M = translate(M, explosion->pos); //Wylicz macierz modelu
+		M = scale(M, vec3(explosion->size, explosion->size, explosion->size));
+		drawObject(P, V, M, explosionObj);
+	}
 	
 	//mapa
 	spMap->use();//Aktywacja programu cieniującego
@@ -258,6 +270,12 @@ void moveTurret(double time) //TODO poprawić
 
 void makeExplosion(float x, float y, float z)
 {
+	explosion = new Explosion();
+	explosion->pos = vec3(x, y, z);
+}
+
+void makeHole(float x, float y, float z)
+{
 	int id = 0, t = 0, t1 = 0, t2 = 0, t3 = 0;
 	vec3 n;
 	for (int i = 0; i < 10; i++)
@@ -282,8 +300,8 @@ void makeExplosion(float x, float y, float z)
 			if (loadedMap->pos[id + 5].y > t3 && i != 9 && j != 9)
 				loadedMap->pos[id + 5].y = t3;
 
-			for(int k=0; k<6; k++)
-				if(loadedMap->pos[id + k].y < 0 )
+			for (int k = 0; k < 6; k++)
+				if (loadedMap->pos[id + k].y < 0)
 					loadedMap->pos[id + k].y = 0;
 
 			n = normalize(cross(vec3(loadedMap->pos[id + 2]) - vec3(loadedMap->pos[id]), vec3(loadedMap->pos[id + 1]) - vec3(loadedMap->pos[id])));
@@ -324,12 +342,26 @@ void moveProjectile(double time)
 	}
 }
 
+void moveExplosion(double time)
+{
+	if (explosion)
+	{
+		explosion->size += explosion->EXPANSION_SPEED*time;
+		if (explosion->size > explosion->MAX_SIZE)
+		{
+			makeHole(explosion->pos.x, explosion->pos.y, explosion->pos.z);
+			explosion = 0;
+		}
+	}
+}
+
 //Procedura aktualizująca pozycje
 void moveObjects(double time)
 {
 	movePlayer(time);
 	moveTurret(time);
 	moveProjectile(time);
+	moveExplosion(time);
 }
 
 int main(void)

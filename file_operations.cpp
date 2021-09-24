@@ -23,6 +23,7 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 
 
 #include "game.h"
+#include "objects/mycube.h" //TODO usun¹æ
 
 GLuint readTexture(const char* filename) {
 	GLuint tex;
@@ -67,14 +68,14 @@ void readMapList(const char * mapFilesLocation, Map *** mapList, int * mapListSi
 				continue;
 			if (strncmp(dir->d_name + lenstr - 4, ".map", 4) == 0)
 			{
-				*mapList[index] = new Map();
+				(*mapList)[index] = new Map();
 				//czytaj zawartoœæ pliku ".map"
 				printf("%s \n", dir->d_name);
 				char fn[255] = "";
 				strcpy_s(fn, mapFilesLocation);
 				strcat_s(fn, dir->d_name);
-				(*mapList[index])->filename = new char[255];
-				strcpy_s((*mapList[index])->filename, 200, fn);
+				(*mapList)[index]->filename = new char[255];
+				strcpy_s((*mapList)[index]->filename, 200, fn);
 
 				FILE *fp;
 				fopen_s(&fp, fn, "r");
@@ -86,38 +87,41 @@ void readMapList(const char * mapFilesLocation, Map *** mapList, int * mapListSi
 				}
 				else
 				{
+					int line = 0;
 					while (fgets(temp, 255, fp))
 					{
+
 						int i = 0;
 						while (temp[i] != '\n' && temp[i] != '\0') i++;
 						temp[i] = '\0';
-						if (index == 0)
+						if (line == 0)
 						{
 							printf("nazwa : %s\n", temp);
-							(*mapList[index])->filename = new char[255];
-							strcpy_s((*mapList[index])->name, 200, mapFilesLocation);
-							strcat_s((*mapList[index])->name, 200, temp);
+							(*mapList)[index]->name = new char[255];
+							strcpy_s((*mapList)[index]->name, 200, temp);
 						}
-						else if (index == 1)
+						else if (line == 1)
 						{
 							printf("Rozmiar : %s\n", temp);
-							(*mapList[index])->sizeY = atoi(temp);
+							(*mapList)[index]->sizeY = 3;
+							(*mapList)[index]->sizeY = atoi(temp);
 						}
-						else if (index == 2)
+						else if (line == 2)
 						{
 							printf("Mapa : %s\n", temp);
-							(*mapList[index])->mapFilename = new char[255];
-							strcpy_s((*mapList[index])->mapFilename, 200, temp);
+							(*mapList)[index]->mapFilename = new char[255];
+							strcpy_s((*mapList)[index]->mapFilename, 200, mapFilesLocation);
+							strcat_s((*mapList)[index]->mapFilename, 200, temp);
 						}
-						else if (index == 3)
+						else if (line == 3)
 						{
+							printf("Mini : %s\n", temp);
 							char fn2[255] = "";
 							strcpy_s(fn2, mapFilesLocation);
 							strcat_s(fn2, temp);
-							printf("Mini : %s\n", fn2);
-							(*mapList[index])->mini = readTexture(fn2);
+							(*mapList)[index]->mini = readTexture(fn2);
 						}
-						index++;
+						line++;
 					}
 				}
 				fclose(fp);
@@ -141,7 +145,7 @@ void loadMap(Map ** mapList, int chosen, LoadedMap ** loadedMap)
 	std::vector<unsigned char> image;   //Alokuj wektor do wczytania obrazka
 	unsigned width, height;   //Zmienne do których wczytamy wymiary obrazka
 	//Wczytaj obrazek
-	printf("\n Wczytywanie mapy nr ###%d###\n", filename);
+	printf("\n Wczytywanie mapy ###%s###\n", filename);
 	unsigned error = lodepng::decode(image, width, height, filename);
 
 	(*loadedMap)->size = vec3(width, depth, height);
@@ -188,4 +192,17 @@ void loadMap(Map ** mapList, int chosen, LoadedMap ** loadedMap)
 		(*loadedMap)->normals[6 * i + 4] = vec4(n, 1);
 		(*loadedMap)->normals[6 * i + 5] = vec4(n, 1);
 	}
+}
+
+Object * loadObject()
+{
+	Object * out = new Object;
+	out->vertices = myCubeVertices;
+	out->normals = myCubeNormals;
+	out->texCoords = myCubeTexCoords;
+	out->vertexCount = myCubeVertexCount;
+	out->tex0 = readTexture("textures/metal.png");
+	out->tex1 = readTexture("textures/metal_spec.png");
+
+	return out;
 }

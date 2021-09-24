@@ -24,7 +24,6 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 
 
 #include "game.h"
-#include "objects/myCube.h"
 
 //stałe globlane
 const char * MAP_FILES_LOCATION = "maps/";
@@ -35,6 +34,8 @@ Camera * camera;
 Player * player;
 Turret * turret;
 LoadedMap * loadedMap;
+float PROJECTILE_FORWARD_SPEED = 50;
+float PROJECTILE_FALLING_SPEED = 1;
 Projectile * projectile;
 Trajectory * trajectory;
 Window * gameWindow;
@@ -55,77 +56,6 @@ Object * projectileObj;
 
 int chosenMap = 2;
 
-/*//kamera
-float cam_rot_x;
-float cam_rot_y;
-float camera_distance = 30;
-
-//gracz
-bool moving_forward = false;
-float player_speed_rot = 1;
-float player_speed_rot_y = 0;
-float player_rot_y = 0;
-float pos_x = 50;
-float pos_y = 1;
-float pos_z = 50;
-float speed = 2;
-float speed_x = 0;
-float speed_y = 0;
-float speed_z = 0;
-
-//działo
-float turret_rot_x;
-float turret_rot_y;
-float turret_speed_y = 1;
-float turret_speed_x = 0.5f;
-
-//mapa
-vec3 *mapSize;
-vec4 mapPos[60000];
-vec4 mapNormals[60000];
-
-//pocisk
-bool projectileExist = false;
-vec2 projectileRot = vec2(1,1);
-float projectileSpeed = 50;
-float fallingSpeed = 1;
-vec3 projectileLoc = vec3(50, 10, 50);
-
-//trajektoria
-bool showTrajectory = true;
-float trajectoryTime = 0.5f;
-int trajectoryCount = 5;
-float trajectorySize = 0.2f;
-
-//okno
-int windowHeight = 900;
-int windowWidth = 1200;
-float aspectRatio = (float)windowWidth / (float)windowHeight;
-float fov = 50;
-
-//mapy
-
-char **filenames;
-char **mapFilenames;
-char ** names;
-GLuint * mini;
-int * sizeY;
-int coun;
-
-float* vertices = myCubeVertices;
-float* normals = myCubeNormals;
-float* texCoords = myCubeTexCoords;
-float* colors = myCubeColors;
-int vertexCount = myCubeVertexCount;
-
-GLuint tex0;
-GLuint tex1;
-GLuint tex2; */
-
-
-
-
-
 //Procedura inicjująca
 void initOpenGLProgram(GLFWwindow* window) 
 {
@@ -139,11 +69,23 @@ void initOpenGLProgram(GLFWwindow* window)
 
 	spObjects = new ShaderProgram("shaders/v_simplest.glsl", NULL, "shaders/f_simplest.glsl");
 	spMap = new ShaderProgram("shaders/mapVS.glsl", NULL, "shaders/mapFS.glsl");
-//	tex0 = readTexture("textures/metal.png");
-//	tex1 = readTexture("textures/metal_spec.png");
+
+
+	camera = new Camera();
+	player = new Player();
+	turret = new Turret();
+	trajectory = new Trajectory();
+	gameWindow = new Window();
+
+	playerObj = loadObject();
+	turretObj = loadObject();
+	trajectoryObj = loadObject();
+	projectileObj = loadObject();
 
 	readMapList(MAP_FILES_LOCATION, &mapList, &mapListSize);
 	loadMap(mapList, chosenMap, &loadedMap);
+	printf("%d\n", loadedMap->size.y);
+
 }
 
 //Zwolnienie zasobów zajętych przez program
@@ -239,7 +181,6 @@ void drawScene(GLFWwindow* window)
 		drawObject(P, V, M, projectileObj);
 	}
 	
-
 	//mapa
 	spMap->use();//Aktywacja programu cieniującego
 	//Przeslij parametry programu cieniującego do karty graficznej
@@ -260,117 +201,135 @@ void drawScene(GLFWwindow* window)
 	glfwSwapBuffers(window); //Przerzuć tylny bufor na przedni
 }
 
+void movePlayer(double time)
+{
+	//przesuwanie
+	player->currentLoc.x += sin(player->rotY + PI / 2.0f)*player->currentMovingSpeed.x * time + sin(player->rotY)*player->currentMovingSpeed.z * time; //Zwiększ/zmniejsz pozycje na podstawie prędkości, obrotu gracza i czasu jaki upłynał od poprzedniej klatki
+	player->currentLoc.z += cos(player->rotY + PI / 2.0f)*player->currentMovingSpeed.x * time + cos(player->rotY)*player->currentMovingSpeed.z * time; //Zwiększ/zmniejsz pozycje na podstawie prędkości, obrotu gracza i czasu jaki upłynał od poprzedniej klatki
+	player->currentLoc.y = loadedMap->pos[(int)(6 * ((int)player->currentLoc.z + loadedMap->size.x*((int)player->currentLoc.x)))].y + 1.0f; //ustaw pozycje gracza na zgodną z wysokością terenu
+
+	//obracanie
+	if (player->currentMovingSpeed.z != 0)
+	{
+		float rotDif = camera->rot.y - player->rotY;
+		if (rotDif < 0.05 && rotDif > -0.05)
+			player->currentRotSpeed = 0;
+		else if (rotDif >= PI || (rotDif <= 0 && rotDif > -PI))
+			player->currentRotSpeed = -player->ROT_SPEED;
+		else
+			player->currentRotSpeed = player->ROT_SPEED;
+
+		player->rotY += player->currentRotSpeed * time; //Zwiększ/zmniejsz rotacje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
+
+		while (player->rotY > 2 * PI)
+			player->rotY -= 2 * PI;
+
+		while (player->rotY < 0)
+			player->rotY += 2 * PI;
+	}
+}
+
+void moveTurret(double time) //TODO poprawić
+{
+	//działo
+	if (turret->rot.x > camera->rot.x + 2 * turret->ROT_SPEED.x* time)
+		turret->rot.x -= turret->ROT_SPEED.x * time;
+	else if (turret->rot.x < camera->rot.x - 2 * turret->ROT_SPEED.x* time)
+		turret->rot.x += turret->ROT_SPEED.x * time;
+
+	if (turret->rot.x > 0.25f * PI && turret->rot.x < PI)
+		turret->rot.x = 0.25f * PI;
+	if (turret->rot.x > PI && turret->rot.x < 1.75f*PI)
+		turret->rot.x = 1.75f*PI;
+
+	//printf("%f \t %f \t \t %f %f\n", turret->rot.y, player->rotY, turret->rot.y + player->rotY, camera->rot.y);
+
+
+	if (turret->rot.y + player->rotY - PI / 2 > camera->rot.y + 2 * turret->ROT_SPEED.y* time)
+		turret->rot.y -= turret->ROT_SPEED.y * time;
+	else if (turret->rot.y + player->rotY - PI / 2 < camera->rot.y - 2 * turret->ROT_SPEED.y* time)
+		turret->rot.y += turret->ROT_SPEED.y * time;
+
+	if (turret->rot.y < 0)
+		turret->rot.y = 0;
+	if (turret->rot.y > PI)
+		turret->rot.y = PI;
+}
+
+void makeExplosion(float x, float y, float z)
+{
+	int id = 0, t = 0, t1 = 0, t2 = 0, t3 = 0;
+	vec3 n;
+	for (int i = 0; i < 10; i++)
+	{
+		for (int j = 0; j < 10; j++)
+		{
+			id = (int)(6 * ((int)z - 5 + i + loadedMap->size.z*((int)x - 5 + j)));
+			t = y - 2.0f + 0.1f*((i - 5)*(i - 5) + (j - 5)*(j - 5));
+			t1 = y - 2.0f + 0.1f*((i - 4)*(i - 4) + (j - 5)*(j - 5));
+			t2 = y - 2.0f + 0.1f*((i - 5)*(i - 5) + (j - 4)*(j - 4));
+			t3 = y - 2.0f + 0.1f*((i - 4)*(i - 4) + (j - 4)*(j - 4));
+			if (loadedMap->pos[id].y > t && i != 0 && j != 0)
+				loadedMap->pos[id].y = t;
+			if (loadedMap->pos[id + 1].y > t2 && i != 0 && j != 9)
+				loadedMap->pos[id + 1].y = t2;
+			if (loadedMap->pos[id + 2].y > t1 && i != 9 && j != 0)
+				loadedMap->pos[id + 2].y = t1;
+			if (loadedMap->pos[id + 3].y > t2 && i != 0 && j != 9)
+				loadedMap->pos[id + 3].y = t2;
+			if (loadedMap->pos[id + 4].y > t1 && i != 9 && j != 0)
+				loadedMap->pos[id + 4].y = t1;
+			if (loadedMap->pos[id + 5].y > t3 && i != 9 && j != 9)
+				loadedMap->pos[id + 5].y = t3;
+
+			for(int k=0; k<6; k++)
+				if(loadedMap->pos[id + k].y < 0 )
+					loadedMap->pos[id + k].y = 0;
+
+			n = normalize(cross(vec3(loadedMap->pos[id + 2]) - vec3(loadedMap->pos[id]), vec3(loadedMap->pos[id + 1]) - vec3(loadedMap->pos[id])));
+
+			loadedMap->normals[id] = vec4(n, 1);
+			loadedMap->normals[id + 1] = vec4(n, 1);
+			loadedMap->normals[id + 2] = vec4(n, 1);
+
+			n = normalize(cross(vec3(loadedMap->pos[id + 4]) - vec3(loadedMap->pos[id + 3]), vec3(loadedMap->pos[id + 5]) - vec3(loadedMap->pos[id + 3])));
+
+			loadedMap->normals[id + 3] = vec4(n, 1);
+			loadedMap->normals[id + 4] = vec4(n, 1);
+			loadedMap->normals[id + 5] = vec4(n, 1);
+		}
+	}
+}
+
+void moveProjectile(double time)
+{
+	//pocisk
+	if (projectile)
+	{
+		projectile->pos.x += sin(projectile->rot.x)*sin(projectile->rot.y)*PROJECTILE_FORWARD_SPEED * time; //Zwiększ/zmniejsz pozycje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
+		projectile->pos.z += sin(projectile->rot.x)*cos(projectile->rot.y)*PROJECTILE_FORWARD_SPEED * time; //Zwiększ/zmniejsz pozycje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
+		projectile->pos.y += cos(projectile->rot.x)*PROJECTILE_FORWARD_SPEED * time;
+
+		projectile->rot.x += PROJECTILE_FALLING_SPEED * time;
+		if (projectile->rot.x > PI)
+			projectile->rot.x = PI;
+
+		//check explosion
+		if (projectile->pos.y <= loadedMap->pos[(int)(6 * ((int)projectile->pos.z + loadedMap->size.z*((int)projectile->pos.x)))].y)
+		{
+			float explosion_y = loadedMap->pos[(int)(6 * ((int)projectile->pos.z + loadedMap->size.z*((int)projectile->pos.x)))].y;
+			makeExplosion(projectile->pos.x, explosion_y, projectile->pos.z);
+			projectile = 0;
+		}
+	}
+}
+
 //Procedura aktualizująca pozycje
 void moveObjects(double time)
 {
-	//gracz pos
-	pos_x += sin(player_rot_y + PI / 2.0f)*speed_x * time; //Zwiększ/zmniejsz pozycje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
-	pos_z += cos(player_rot_y + PI / 2.0f)*speed_x * time; //Zwiększ/zmniejsz pozycje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
-
-	pos_x += sin(player_rot_y)*speed_z * time; //Zwiększ/zmniejsz pozycje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
-	pos_z += cos(player_rot_y)*speed_z * time; //Zwiększ/zmniejsz pozycje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
-
-	pos_y = mapPos[(int)(6 * ((int)pos_z + mapSize->x*((int)pos_x)))].y + 1.0f;
-
-	//pocisk
-	if (projectileExist)
-	{
-		projectileLoc.x += sin(projectileRot.x)*sin(projectileRot.y)*projectileSpeed * time; //Zwiększ/zmniejsz pozycje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
-		projectileLoc.z += sin(projectileRot.x)*cos(projectileRot.y)*projectileSpeed * time; //Zwiększ/zmniejsz pozycje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
-		projectileLoc.y += cos(projectileRot.x)*projectileSpeed * time;
-
-		projectileRot.x += fallingSpeed * time;
-		if (projectileRot.x > PI)
-			projectileRot.x = PI;
-
-		if (projectileLoc.y <= mapPos[(int)(6 * ((int)projectileLoc.z + mapSize->x*((int)projectileLoc.x)))].y)
-		{
-			projectileExist = false;
-			float explosion_y = mapPos[(int)(6 * ((int)projectileLoc.z + mapSize->x*((int)projectileLoc.x)))].y;
-			int id = 0, t = 0, t1 = 0, t2 = 0, t3 = 0;
-			vec3 n;
-			for (int i = 0; i < 10; i++)
-			{
-				for (int j = 0; j < 10; j++)
-				{
-					id = (int)(6 * ((int)projectileLoc.z - 5 + i + mapSize->x*((int)projectileLoc.x - 5 + j)));
-					t = explosion_y - 2.0f + 0.1f*((i - 5)*(i - 5) + (j - 5)*(j - 5));
-					t1 = explosion_y - 2.0f + 0.1f*((i - 4)*(i - 4) + (j - 5)*(j - 5));
-					t2 = explosion_y - 2.0f + 0.1f*((i - 5)*(i - 5) + (j - 4)*(j - 4));
-					t3 = explosion_y - 2.0f + 0.1f*((i - 4)*(i - 4) + (j - 4)*(j - 4));
-					if (mapPos[id].y > t && i != 0 && j != 0)
-						mapPos[id].y = t;
-					if (mapPos[id + 1].y > t2 && i != 0 && j != 9)
-						mapPos[id + 1].y = t2;
-					if (mapPos[id + 2].y > t1 && i != 9 && j != 0)
-						mapPos[id + 2].y = t1;
-					if (mapPos[id + 3].y > t2 && i != 0 && j != 9)
-						mapPos[id + 3].y = t2;
-					if (mapPos[id + 4].y > t1 && i != 9 && j != 0)
-						mapPos[id + 4].y = t1;
-					if (mapPos[id + 5].y > t3 && i != 9 && j != 9)
-						mapPos[id + 5].y = t3;
-
-					n = normalize(cross(vec3(mapPos[id + 2]) - vec3(mapPos[id]), vec3(mapPos[id + 1]) - vec3(mapPos[id])));
-
-					mapNormals[id] = vec4(n, 1);
-					mapNormals[id + 1] = vec4(n, 1);
-					mapNormals[id + 2] = vec4(n, 1);
-
-					n = normalize(cross(vec3(mapPos[id + 4]) - vec3(mapPos[id + 3]), vec3(mapPos[id + 5]) - vec3(mapPos[id + 3])));
-
-					mapNormals[id + 3] = vec4(n, 1);
-					mapNormals[id + 4] = vec4(n, 1);
-					mapNormals[id + 5] = vec4(n, 1);
-				}
-			}
-		}
-	}
-
-	//działo
-	if (turret_rot_x > cam_rot_x + 2 * turret_speed_x* time)
-		turret_rot_x -= turret_speed_x * time;
-	else if (turret_rot_x < cam_rot_x - 2 * turret_speed_x* time)
-		turret_rot_x += turret_speed_x * time;
-
-	if (turret_rot_x > 0.25f * PI && turret_rot_x < PI)
-		turret_rot_x = 0.25f * PI;
-	if (turret_rot_x > PI && turret_rot_x < 1.75f*PI)
-		turret_rot_x = 1.75f*PI;
-
-	printf("%f \t %f \t \t %f %f\n", turret_rot_y, player_rot_y, turret_rot_y + player_rot_y, cam_rot_y);
-
-
-	if (turret_rot_y + player_rot_y - PI / 2 > cam_rot_y + 2 * turret_speed_y* time)
-		turret_rot_y -= turret_speed_y * time;
-	else if (turret_rot_y + player_rot_y - PI / 2 < cam_rot_y - 2 * turret_speed_y* time)
-		turret_rot_y += turret_speed_y * time;
-
-	if (turret_rot_y < 0)
-		turret_rot_y = 0;
-	if (turret_rot_y > PI)
-		turret_rot_y = PI;
-
-	//gracz rot
-	if (speed_z != 0)
-	{
-		if (cam_rot_y - player_rot_y < 0.05 && cam_rot_y - player_rot_y > -0.05)
-			player_speed_rot_y = 0;
-		else if (cam_rot_y - player_rot_y >= PI || (cam_rot_y - player_rot_y <= 0 && cam_rot_y - player_rot_y > -PI))
-			player_speed_rot_y = -player_speed_rot;
-		else
-			player_speed_rot_y = player_speed_rot;
-
-		player_rot_y += player_speed_rot_y * time; //Zwiększ/zmniejsz rotacje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
-
-		while (player_rot_y > 2 * PI)
-			player_rot_y -= 2 * PI;
-
-		while (player_rot_y < 0)
-			player_rot_y += 2 * PI;
-
-		//printf("%f %f \n", player_rot_y, rot_y);
-	}
+	movePlayer(time);
+	moveTurret(time);
+	moveProjectile(time);
 }
 
 int main(void)

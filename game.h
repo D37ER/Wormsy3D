@@ -48,8 +48,8 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 //struktury
 	struct Camera
 	{
-		vec2 rot;
-		vec2 distance;
+		vec2 rot = vec2(0,0);
+		float distance = 30;
 	};
 
 	struct Player
@@ -59,7 +59,8 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 		bool moving_forward = false;
 		float rotY = 0;
 		vec3 currentLoc = vec3(50, 1, 50);
-		vec3 currentSpeed = vec3(0, 0, 0);
+		vec3 currentMovingSpeed = vec3(0, 0, 0);
+		float currentRotSpeed = 0;
 	};
 
 	struct Turret
@@ -103,7 +104,7 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 	{
 		int height = 900;
 		int width = 1200;
-		float aspectRatio = (float)height / (float)width;
+		float aspectRatio = (float)width / (float)height;
 		float fov = 50;
 	};
 
@@ -121,12 +122,12 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 	extern const char * MAP_FILES_LOCATION;
 
 //zmienne globalne
-	 Camera * camera;
+	extern Camera * camera;
 	extern Player * player;
 	extern Turret * turret;
 	extern LoadedMap * loadedMap;
-	float PROJECTILE_FORWARD_SPEED = 50;
-	float PROJECTILE_FALLING_SPEED = 1;
+	extern float PROJECTILE_FORWARD_SPEED;
+	extern float PROJECTILE_FALLING_SPEED;
 	extern Projectile * projectile;
 	extern Trajectory * trajectory;
 	extern Window * gameWindow;
@@ -155,6 +156,6 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 	GLuint readTexture(const char* filename);
 	void readMapList(const char * mapFilesLocation, Map *** mapList, int * mapListSize);
 	void loadMap(Map ** mapList, int chosen, LoadedMap ** loadedMap);
-
+	Object * loadObject();
 
 #endif

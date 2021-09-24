@@ -28,7 +28,7 @@ Projekt PUT GKiW
 - [x] chodzenie "po mapie"
 - [x] pociski po krzywej
 - [x] interakcja pocisk-teren
-- [ ] :exclamation: efekty interakcji pocisk-teren
+- [x] efekty interakcji pocisk-teren
 - [ ] :exclamation: wczytywanie obiektów 3d (żółw, rakieta, turret)
 - [ ] wiatr
 - [ ] przeciwnicy i inni gracze

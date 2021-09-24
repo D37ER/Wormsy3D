@@ -3,13 +3,29 @@
 uniform sampler2D textureMap0;
 uniform sampler2D textureMap1;
 
-in vec4 l;
+uniform bool showExplosion;
+uniform vec3 explosionColor;
+
+uniform bool showProjectile;
+uniform vec3 projectileColor;
+
+in vec4 lSun;
+in vec4 lExplosion;
+in vec4 lProjectile;
 in vec4 n;
 in vec3 color;
 
 out vec4 pixelColor; //Zmienna wyjsciowa fragment shadera. Zapisuje sie do niej ostateczny (prawie) kolor piksela
 
 void main(void) {
-	float nl = 0.5 + 0.5*clamp(dot(n, l), 0, 1);
-	pixelColor= vec4(color*nl ,1);
+	float nlSun = 0.5 + 0.5*clamp(dot(n, lSun), 0, 1);
+	float nlExplosion = clamp(dot(n, lExplosion), 0, 1);
+	float nlProjectile = clamp(dot(n, lProjectile), 0, 1);
+
+	if(showExplosion)
+		pixelColor= vec4(clamp(color.r*nlSun + nlExplosion*explosionColor.r, 0, 1), clamp(color.g*nlSun + nlExplosion*explosionColor.g, 0, 1), clamp(color.b*nlSun + nlExplosion*explosionColor.b, 0, 1) ,1);
+	else if(showProjectile)
+		pixelColor= vec4(clamp(color.r*nlSun + nlProjectile*projectileColor.r, 0, 1), clamp(color.g*nlSun + nlProjectile*projectileColor.g, 0, 1), clamp(color.b*nlSun + nlProjectile*projectileColor.b, 0, 1) ,1);
+	else
+		pixelColor= vec4(color*nlSun ,1);
 }

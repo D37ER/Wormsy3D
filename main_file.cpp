@@ -194,10 +194,28 @@ void drawScene(GLFWwindow* window)
 	}
 	
 	//mapa
+	vec4 sunPos = vec4(50, 30, 50, 1);
+	vec4 explosionPos = vec4(0, 0, 0, 1);
+	vec4 explosionColor = vec4(0.5, 0.1, 0, 1);
+	vec4 projectilePos = vec4(0, 0, 0, 1);
+	vec4 projectileColor = vec4(0.1, 0, 0, 1);
+
+	if(explosion)
+		explosionPos = vec4(explosion->pos, 1);
+	if (projectile)
+		projectilePos = vec4(projectile->pos, 1);
+
 	spMap->use();//Aktywacja programu cieniującego
 	//Przeslij parametry programu cieniującego do karty graficznej
 	glUniformMatrix4fv(spMap->u("P"), 1, false, value_ptr(P));
 	glUniformMatrix4fv(spMap->u("V"), 1, false, value_ptr(V));
+	glUniform4fv(spMap->u("sun"), 1, value_ptr(sunPos));
+	glUniform4fv(spMap->u("explosion"), 1, value_ptr(explosionPos));
+	glUniform1i(spMap->u("showExplosion"), (explosion)? true: false);
+	glUniform3fv(spMap->u("explosionColor"), 1, value_ptr(explosionColor));
+	glUniform4fv(spMap->u("projectile"), 1, value_ptr(projectilePos));
+	glUniform1i(spMap->u("showProjectile"), (projectile) ? true : false);
+	glUniform3fv(spMap->u("projectileColor"), 1, value_ptr(projectileColor));
 
 	glEnableVertexAttribArray(spMap->a("mapPos"));  //Włącz przesyłanie danych do atrybutu vertex
 	glVertexAttribPointer(spMap->a("mapPos"), 4, GL_FLOAT, false, 0, loadedMap->pos); //Wskaż tablicę z danymi dla atrybutu vertex

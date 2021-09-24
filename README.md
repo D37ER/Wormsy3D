@@ -31,8 +31,8 @@ Projekt PUT GKiW
 - [x] efekty interakcji pocisk-teren
 - [ ] :exclamation: wczytywanie obiektów 3d (żółw, rakieta, turret)
 - [ ] wiatr
-- [ ] :arrow_right: przeciwnicy i inni gracze
-- [ ] :arrow_right: punkty życia
+- [ ] :fast_forward: przeciwnicy i inni gracze
+- [ ] :fast_forward: punkty życia
 - [ ] gui
 
 ### poprawki

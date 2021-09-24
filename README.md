@@ -36,7 +36,7 @@ Projekt PUT GKiW
 - [ ] gui
 
 ### poprawki
-- [ ] :exclamation: poprawa ruchu turreta
+- [ ] poprawa ruchu turreta
 
 ### dodatkowo
 - [ ] niebo i woda

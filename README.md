@@ -28,20 +28,21 @@ Projekt PUT GKiW
 - [x] chodzenie "po mapie"
 - [x] pociski po krzywej
 - [x] interakcja pocisk-teren
-- [ ] :exclamation: efekty interakcji pocisk-teren
-- [ ] :exclamation: wczytywanie obiektów 3d (żółw, rakieta, turret)
+- [x] efekty interakcji pocisk-teren
+- [x] wczytywanie obiektów 3d (żółw, rakieta, turret, eksplozja, trajektoria)
+- [ ] :fast_forward: przeciwnicy i inni gracze
+- [ ] :fast_forward: punkty życia
 - [ ] wiatr
-- [ ] przeciwnicy i inni gracze
-- [ ] punkty życia
-- [ ] gui
+- [ ] gui (punkty życia)
 
 ### poprawki
-- [ ] :exclamation: poprawa ruchu turreta
+- [ ] poprawa ruchu turreta
+- [ ] poprawa źródeł światła
 
 ### dodatkowo
 - [ ] niebo i woda
-- [ ] obiekty na planszy (palmy)
 - [ ] tekstura mapy (multitekstura z teksturą wyboru)
-- [ ]  cegły (na mapie)
-- [ ]  fizyka cegieł i niszczenie 
-- [ ]  menu
+- [ ] obiekty na planszy (palmy)
+- [ ] cegły (na mapie)
+- [ ] fizyka cegieł i niszczenie 
+- [ ] menu

@@ -40,6 +40,7 @@ Projekt PUT GKiW
 - [ ] poprawa źródeł światła
 
 ### dodatkowo
+- [ ] kamera pocisku
 - [ ] niebo i woda
 - [ ] tekstura mapy (multitekstura z teksturą wyboru)
 - [ ] obiekty na planszy (palmy)

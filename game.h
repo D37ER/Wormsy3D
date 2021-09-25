@@ -35,6 +35,7 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 
 	#include <stdlib.h>
 	#include <stdio.h>
+	#include <fstream>
 	#include <time.h>
 	#include <dirent.h> 
 
@@ -55,7 +56,7 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 	struct Player
 	{
 		float ROT_SPEED = 1;
-		float MOVING_SPEED = 2;
+		float MOVING_SPEED = 20;
 		bool moving_forward = false;
 		float rotY = 0;
 		vec3 currentLoc = vec3(50, 1, 50);
@@ -83,13 +84,16 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 	{
 		vec3 size;
 		vec4 * pos;
+		float * startY;
 		vec4 * normals;
 	};
 
 	struct Projectile
 	{
+		float CREATE_SMOKE_INTERVAL = 0.05f;
 		vec3 pos = vec3(50, 10, 50);
 		vec2 rot = vec2(1, 1);
+		float time = 0;
 	};
 
 	struct Trajectory
@@ -97,7 +101,7 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 		bool show = true;
 		float time = 0.5f;
 		int count = 5;
-		float size = 0.2f;
+		float size = 3;
 	};
 
 	struct Explosion
@@ -106,6 +110,17 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 		float size = 0;
 		float MAX_SIZE = 5;
 		float EXPANSION_SPEED = 20;
+	};
+
+	struct Smoke
+	{
+		float MIN_LIFE = 1;
+		float MAX_LIFE = 1.5f;
+		float MIN_SIZE = 1;
+		float MAX_SIZE = 5;
+		float size;
+		vec3 pos;
+		float life;
 	};
 
 	struct Window
@@ -139,6 +154,9 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 	extern Projectile * projectile;
 	extern Trajectory * trajectory;
 	extern Explosion * explosion;
+	extern float EXPLOSION_OBJECT_SIZE;
+	extern Smoke ** smoke;
+	extern int smokeCount;
 	extern Window * gameWindow;
 
 	extern ShaderProgram *spObjects, *spMap;
@@ -153,19 +171,22 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 	extern Object * trajectoryObj;
 	extern Object * projectileObj;
 	extern Object * explosionObj;
+	extern Object * smokeObj;
 
 
 //procedury wydarzeñ
 	void errorCallback(int error, const char* description);
+	void windowResizeCallback(GLFWwindow* window, int width, int height);
 	void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 	void cursorPositionCallback(GLFWwindow* window, double xpos, double ypos);
+	void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 	void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);
-	void windowResizeCallback(GLFWwindow* window, int width, int height);
+	
 
 //wczytywanie plików
 	GLuint readTexture(const char* filename);
 	void readMapList(const char * mapFilesLocation, Map *** mapList, int * mapListSize);
 	void loadMap(Map ** mapList, int chosen, LoadedMap ** loadedMap);
-	Object * loadObject();
+	Object * loadObject(const char * objectFileName, GLuint tex0, GLuint tex1);
 
 #endif

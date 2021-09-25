@@ -23,7 +23,7 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 
 
 #include "game.h"
-#include "objects/mycube.h" //TODO usun¹æ
+#include "objects/myTeapot.h" //TODO usun¹æ
 
 GLuint readTexture(const char* filename) {
 	GLuint tex;
@@ -150,6 +150,7 @@ void loadMap(Map ** mapList, int chosen, LoadedMap ** loadedMap)
 
 	(*loadedMap)->size = vec3(width, depth, height);
 	(*loadedMap)->pos = new vec4[6 * width * height];
+	(*loadedMap)->startY = new float[6 * width * height];
 	(*loadedMap)->normals = new vec4[6 * width * height];
 
 	vec3 n;
@@ -192,17 +193,143 @@ void loadMap(Map ** mapList, int chosen, LoadedMap ** loadedMap)
 		(*loadedMap)->normals[6 * i + 4] = vec4(n, 1);
 		(*loadedMap)->normals[6 * i + 5] = vec4(n, 1);
 	}
+
+	//przed³u¿enie krawêdzi
+	for (int i = 0; i < 3*width; i++)
+		(*loadedMap)->pos[2*i].x = -1000;
+
+	for (int i = 0; i < 3 * width; i++)
+		(*loadedMap)->pos[6*width*height - 2 * i -1].x = 1000;
+
+	for (int i = 0; i < height; i++)
+	{
+		(*loadedMap)->pos[6 * i * width].z = -1000;
+		(*loadedMap)->pos[6 * i * width+1].z = -1000;
+		(*loadedMap)->pos[6 * i * width + 3].z = -1000;
+		
+	}
+	for (int i = 1; i <= height; i++)
+	{
+		(*loadedMap)->pos[6 * i * width - 1].z = 1000;
+		(*loadedMap)->pos[6 * i * width - 2].z = 1000;
+		(*loadedMap)->pos[6 * i * width - 4].z = 1000;
+
+	}
+
+	//zapamiêtanie orginalnych wysokoœci
+	for (int i = 0; i < 6*width*height; i++)
+		(*loadedMap)->startY[i] = (*loadedMap)->pos[i].y;
 }
 
-Object * loadObject()
+Object * loadObject(const char * objectFileName, GLuint tex0, GLuint tex1)
 {
 	Object * out = new Object;
-	out->vertices = myCubeVertices;
-	out->normals = myCubeNormals;
-	out->texCoords = myCubeTexCoords;
-	out->vertexCount = myCubeVertexCount;
-	out->tex0 = readTexture("textures/metal.png");
-	out->tex1 = readTexture("textures/metal_spec.png");
+	if (!objectFileName)
+	{
+		out->vertices = myTeapotVertices;
+		out->normals = myTeapotNormals;
+		out->texCoords = myTeapotTexCoords;
+		out->vertexCount = myTeapotVertexCount;
+		out->tex0 = 0;
+		out->tex1 = 0;
+	}
+	else
+	{
+		int count = 0;
+		ifstream fileS(objectFileName, std::ifstream::in);
+		string t;
+		while (!fileS.eof())
+		{
+			fileS >> t;
+			if (t[0] == 'v' && t[1] == '\0')
+				count++;
+		}
 
+		count+=3;
+
+		float * v = new float[3*count];
+		float * vt = new float[2*count];
+		float * vn = new float[3*count];
+
+		out->vertices = new float[4*count];
+		out->texCoords = new float[2 * count];
+		out->normals = new float[4 * count];
+		
+		
+
+
+		ifstream fs(objectFileName, std::ifstream::in);
+		string type, a, b, c;
+		int ai, bi, ci;
+		int i = 0, j = 0, k = 0, l = 0;
+		while (!fs.eof())
+		{
+			fs >> type;
+		
+			if (type[0] == 'v' && type[1] == '\0')
+			{
+				getline(fs, a, ' ');
+				getline(fs, a, ' ');
+				getline(fs, b, ' ');
+				getline(fs, c);
+				v[i++] = stof(a);
+				v[i++] = stof(b);
+				v[i++] = stof(c);
+			}
+			else if (type[0] == 'v'  && type[1] == 't' && type[2] == '\0')
+			{
+				getline(fs, a, ' ');
+				getline(fs, a, ' ');
+				getline(fs, b);
+				vt[j++] = stof(a);
+				vt[j++] = stof(b);
+
+			}
+			else if (type[0] == 'v'  && type[1] == 'n' && type[2] == '\0')
+			{
+				getline(fs, a, ' ');
+				getline(fs, a, ' ');
+				getline(fs, b, ' ');
+				getline(fs, c);
+				vn[k++] = stof(a);
+				vn[k++] = stof(b);
+				vn[k++] = stof(c);
+			}
+			else if (type[0] == 'f')
+			{
+				for (int k = 0; k < 3; k++)
+				{
+					getline(fs, a, '/');
+					getline(fs, b, '/');
+					if(k==2)
+						getline(fs, c);
+					else
+						getline(fs, c, ' ');
+
+					ai = atoi(a.c_str());
+					bi = atoi(b.c_str());
+					ci = atoi(c.c_str());
+
+					out->vertices[4 * l] = v[3 * ai -3]/20.0f;
+					out->vertices[4 * l+1] = v[3 * ai -2] / 20.0f;
+					out->vertices[4 * l+2] = v[3 * ai -1] / 20.0f;
+					out->vertices[4 * l+3] = 1;
+
+					out->texCoords[2 * l] = vt[2 * bi -2];
+					out->texCoords[2 * l + 1] = 1-vt[2 * bi -1];
+
+					out->normals[4 * l] = vn[3 * ci -3];
+					out->normals[4 * l + 1] = vn[3 * ci -2];
+					out->normals[4 * l + 2] = vn[3 * ci -1];
+					out->normals[4 * l + 3] = 0;
+					l++;
+				}
+			}
+		}
+
+		out->vertexCount = l;
+		out->tex0 = tex0;
+		out->tex1 = tex1;
+	}
 	return out;
 }

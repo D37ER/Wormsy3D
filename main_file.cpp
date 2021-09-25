@@ -35,10 +35,13 @@ Player * player;
 Turret * turret;
 LoadedMap * loadedMap;
 float PROJECTILE_FORWARD_SPEED = 50;
-float PROJECTILE_FALLING_SPEED = 1;
+float PROJECTILE_FALLING_SPEED = 0.5f;
 Projectile * projectile;
 Trajectory * trajectory;
 Explosion * explosion;
+float EXPLOSION_OBJECT_SIZE = 50;
+extern Smoke ** smoke = new Smoke * [300];
+extern int smokeCount = 0;
 Window * gameWindow;
 
 ShaderProgram *spObjects, *spMap;
@@ -53,25 +56,26 @@ Object * turretObj;
 Object * trajectoryObj;
 Object * projectileObj;
 Object * explosionObj;
+Object * smokeObj;
 
 //zmienne w obrębie main_file.cpp
 
-int chosenMap = 2;
+int chosenMap = 0;
 
 //Procedura inicjująca
 void initOpenGLProgram(GLFWwindow* window) 
 {
-	glClearColor(0, 0, 0, 1);
+	glClearColor(0.6, 0.6, 1, 1);
 	glEnable(GL_DEPTH_TEST);
 	glfwSetWindowSizeCallback(window, windowResizeCallback);
 	glfwSetKeyCallback(window, keyCallback);
 	glfwSetCursorPosCallback(window, cursorPositionCallback);
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	glfwSetMouseButtonCallback(window, mouseButtonCallback);
 	glfwSetScrollCallback(window, scrollCallback);
 
 	spObjects = new ShaderProgram("shaders/v_simplest.glsl", NULL, "shaders/f_simplest.glsl");
 	spMap = new ShaderProgram("shaders/mapVS.glsl", NULL, "shaders/mapFS.glsl");
-
 
 	camera = new Camera();
 	player = new Player();
@@ -79,16 +83,15 @@ void initOpenGLProgram(GLFWwindow* window)
 	trajectory = new Trajectory();
 	gameWindow = new Window();
 
-	playerObj = loadObject();
-	turretObj = loadObject();
-	trajectoryObj = loadObject();
-	projectileObj = loadObject();
-	explosionObj = loadObject();
+	playerObj = loadObject("objects/turtle.obj", readTexture("textures/turtle.png"), readTexture("textures/turtle2.png"));
+	turretObj = loadObject("objects/turret.obj", readTexture("textures/turret.png"), readTexture("textures/turret2.png"));
+	trajectoryObj = loadObject("objects/sphere.obj", readTexture("textures/trajectory.png"), 0);
+	projectileObj = loadObject("objects/rocket.obj", readTexture("textures/rocket.png"), 0);
+	explosionObj = loadObject("objects/explosion.obj", readTexture("textures/explosion.png"), 0);
+	smokeObj = loadObject("objects/sphere.obj", readTexture("textures/smoke.png"), 0);
 
 	readMapList(MAP_FILES_LOCATION, &mapList, &mapListSize);
 	loadMap(mapList, chosenMap, &loadedMap);
-	printf("%d\n", loadedMap->size.y);
-
 }
 
 //Zwolnienie zasobów zajętych przez program
@@ -143,30 +146,35 @@ void drawScene(GLFWwindow* window)
 		vec3(0.0f, 1.0f, 0.0f)); //Wylicz macierz widoku
 	V = rotate(V, -camera->rot.x, vec3(1.0f, 0.0f, 0.0f));
 	V = rotate(V, -camera->rot.y, vec3(0.0f, 1.0f, 0.0f));
-	V = translate(V, vec3(-player->currentLoc.x, -player->currentLoc.y, -player->currentLoc.z));
+	V = translate(V, vec3(-player->currentLoc.x, -player->currentLoc.y - 10, -player->currentLoc.z));
 
 	//macierz perspektywy
-	mat4 P = perspective(gameWindow->fov*PI / 180.0f, gameWindow->aspectRatio, 0.01f, 200.0f); //Wylicz macierz rzutowania
+	mat4 P = perspective(gameWindow->fov*PI / 180.0f, gameWindow->aspectRatio, 0.01f, 500.0f); //Wylicz macierz rzutowania
 
 	//gracz
 	mat4 M = mat4(1.0f);
-	M = translate(M, vec3(player->currentLoc.x, player->currentLoc.y, player->currentLoc.z)); //Wylicz macierz modelu
-	M = rotate(M, player->rotY, vec3(0, 1, 0)); //Wylicz macierz modelu
+	M = translate(M, vec3(player->currentLoc.x, player->currentLoc.y, player->currentLoc.z)); 
+	M = rotate(M, player->rotY, vec3(0, 1, 0)); 
 	drawObject(P, V, M, playerObj);
 	
 
 	//działo
-	M = translate(M, vec3(0, 2.0f, 0)); //Wylicz macierz modelu
-	M = rotate(M, turret->rot.y, vec3(0, 1, 0)); //Wylicz macierz modelu
-	M = rotate(M, turret->rot.x + PI/4.0f, vec3(0, 0, 1)); //Wylicz macierz modelu
+	M = rotate(M, turret->rot.y - PI/2, vec3(0, 1, 0)); 
 	drawObject(P, V, M, turretObj);
-
+	M = translate(M, vec3(0, 1.8345f, -0.41829f)); 
+	M = rotate(M, turret->rot.x - PI / 4, vec3(1, 0, 0)); 
+	M = translate(M, vec3(0, -1.8345f, 0.41829f)); 
+	if (!projectile)
+		drawObject(P, V, M, projectileObj);
 
 	//trajektoria
+	M = rotate(M, PI / 2, vec3(0, 1, 0));
+	M = rotate(M, PI / 2, vec3(0, 0, 1));
+	M = translate(M, vec3(1.8, 0, 0));
 	for (int i = 0; i < trajectory->count; i++)
 	{
-		M = rotate(M, PROJECTILE_FALLING_SPEED*(trajectory->time / trajectory->count), vec3(0, 0, 1)); //Wylicz macierz modelu
-		M = translate(M, vec3(0, PROJECTILE_FORWARD_SPEED*(trajectory->time / trajectory->count), 0)); //Wylicz macierz modelu
+		M = rotate(M, PROJECTILE_FALLING_SPEED*(trajectory->time / trajectory->count), vec3(0, 0, 1)); 
+		M = translate(M, vec3(0, PROJECTILE_FORWARD_SPEED*(trajectory->time / trajectory->count), 0)); 
 		
 		M = scale(M, vec3(trajectory->size, trajectory->size, trajectory->size));
 		drawObject(P, V, M, trajectoryObj);
@@ -177,10 +185,9 @@ void drawScene(GLFWwindow* window)
 	if (projectile)
 	{
 		M = mat4(1.0f);
-		M = translate(M, projectile->pos); //Wylicz macierz modelu
-		M = rotate(M, projectile->rot.y, vec3(0, 1, 0)); //Wylicz macierz modelu
-		M = rotate(M, projectile->rot.x, vec3(1, 0, 0)); //Wylicz macierz modelu
-		M = scale(M, vec3(0.3f, 1, 0.3f));
+		M = translate(M, vec3(projectile->pos.x, projectile->pos.y + 2, projectile->pos.z)); 
+		M = rotate(M, projectile->rot.y + PI, vec3(0, 1, 0)); 
+		M = rotate(M, projectile->rot.x + PI/2, vec3(-1, 0, 0)); 
 		drawObject(P, V, M, projectileObj);
 	}
 
@@ -188,22 +195,35 @@ void drawScene(GLFWwindow* window)
 	if (explosion)
 	{
 		M = mat4(1.0f);
-		M = translate(M, explosion->pos); //Wylicz macierz modelu
+		M = translate(M, explosion->pos); 
 		M = scale(M, vec3(explosion->size, explosion->size, explosion->size));
+		M = scale(M, vec3(EXPLOSION_OBJECT_SIZE, EXPLOSION_OBJECT_SIZE, EXPLOSION_OBJECT_SIZE));
 		drawObject(P, V, M, explosionObj);
+	}
+
+	//dym
+	for(int i=0; i < smokeCount-2; i++)
+	{
+		if (smoke[i]->life > 0)
+		{
+			M = mat4(1.0f);
+			M = translate(M, smoke[i]->pos);
+			M = scale(M, vec3(smoke[i]->size, smoke[i]->size, smoke[i]->size));
+			drawObject(P, V, M, smokeObj);
+		}
 	}
 	
 	//mapa
-	vec4 sunPos = vec4(50, 30, 50, 1);
+	vec4 sunPos = vec4(-50, 300, -50, 1);
 	vec4 explosionPos = vec4(0, 0, 0, 1);
 	vec4 explosionColor = vec4(0.5, 0.1, 0, 1);
 	vec4 projectilePos = vec4(0, 0, 0, 1);
-	vec4 projectileColor = vec4(0.1, 0, 0, 1);
+	vec4 projectileColor = vec4(0.5, 0, 0, 1);
 
 	if(explosion)
-		explosionPos = vec4(explosion->pos, 1);
+		explosionPos = vec4(explosion->pos.x, explosion->pos.y + 10, explosion->pos.z, 1);
 	if (projectile)
-		projectilePos = vec4(projectile->pos, 1);
+		projectilePos = vec4(projectile->pos.x - 10*sin(projectile->rot.y), projectile->pos.y, projectile->pos.z - 10*cos(projectile->rot.y), 1);
 
 	spMap->use();//Aktywacja programu cieniującego
 	//Przeslij parametry programu cieniującego do karty graficznej
@@ -219,6 +239,9 @@ void drawScene(GLFWwindow* window)
 
 	glEnableVertexAttribArray(spMap->a("mapPos"));  //Włącz przesyłanie danych do atrybutu vertex
 	glVertexAttribPointer(spMap->a("mapPos"), 4, GL_FLOAT, false, 0, loadedMap->pos); //Wskaż tablicę z danymi dla atrybutu vertex
+
+	glEnableVertexAttribArray(spMap->a("startY"));  //Włącz przesyłanie danych do atrybutu vertex
+	glVertexAttribPointer(spMap->a("startY"), 1, GL_FLOAT, false, 0, loadedMap->startY); //Wskaż tablicę z danymi dla atrybutu vertex
 
 	glEnableVertexAttribArray(spMap->a("normal"));  //Włącz przesyłanie danych do atrybutu vertex
 	glVertexAttribPointer(spMap->a("normal"), 4, GL_FLOAT, false, 0, loadedMap->normals); //Wskaż tablicę z danymi dla atrybutu vertex
@@ -236,7 +259,7 @@ void movePlayer(double time)
 	//przesuwanie
 	player->currentLoc.x += sin(player->rotY + PI / 2.0f)*player->currentMovingSpeed.x * time + sin(player->rotY)*player->currentMovingSpeed.z * time; //Zwiększ/zmniejsz pozycje na podstawie prędkości, obrotu gracza i czasu jaki upłynał od poprzedniej klatki
 	player->currentLoc.z += cos(player->rotY + PI / 2.0f)*player->currentMovingSpeed.x * time + cos(player->rotY)*player->currentMovingSpeed.z * time; //Zwiększ/zmniejsz pozycje na podstawie prędkości, obrotu gracza i czasu jaki upłynał od poprzedniej klatki
-	player->currentLoc.y = loadedMap->pos[(int)(6 * ((int)player->currentLoc.z + loadedMap->size.x*((int)player->currentLoc.x)))].y + 1.0f; //ustaw pozycje gracza na zgodną z wysokością terenu
+	player->currentLoc.y = loadedMap->pos[(int)(6 * ((int)player->currentLoc.z + loadedMap->size.x*((int)player->currentLoc.x)))].y + 0.1f; //ustaw pozycje gracza na zgodną z wysokością terenu
 
 	//obracanie
 	if (player->currentMovingSpeed.z != 0)
@@ -337,6 +360,28 @@ void makeHole(float x, float y, float z)
 	}
 }
 
+void createSmoke(vec3 pos)
+{
+	smoke[smokeCount] = new Smoke();
+	smoke[smokeCount]->pos = pos;
+	smoke[smokeCount]->size = smoke[smokeCount]->MIN_SIZE + (rand() % (int)(100 * smoke[smokeCount]->MAX_SIZE - 100 * smoke[smokeCount]->MIN_SIZE)) / 100.0f;
+	smoke[smokeCount]->life = smoke[smokeCount]->MIN_LIFE + (rand() % (int)(100*smoke[smokeCount]->MAX_LIFE - 100 * smoke[smokeCount]->MIN_LIFE))/100.0f;
+	smokeCount++;
+}
+
+void decreaseSmokeLife(double time)
+{
+	bool anyExist = false;
+	for (int i = 0; i < smokeCount; i++)
+		if (smoke[i]->life > 0)
+		{
+			anyExist = true;
+			smoke[i]->life -= time;
+		}
+	if (!anyExist)
+		smokeCount = 0;
+}
+
 void moveProjectile(double time)
 {
 	//pocisk
@@ -350,13 +395,30 @@ void moveProjectile(double time)
 		if (projectile->rot.x > PI)
 			projectile->rot.x = PI;
 
-		//check explosion
-		if (projectile->pos.y <= loadedMap->pos[(int)(6 * ((int)projectile->pos.z + loadedMap->size.z*((int)projectile->pos.x)))].y)
+		//dodaj czas
+		projectile->time += time;
+
+		if (projectile->time > projectile->CREATE_SMOKE_INTERVAL)
 		{
-			float explosion_y = loadedMap->pos[(int)(6 * ((int)projectile->pos.z + loadedMap->size.z*((int)projectile->pos.x)))].y;
-			makeExplosion(projectile->pos.x, explosion_y, projectile->pos.z);
-			projectile = 0;
+			projectile->time -= projectile->CREATE_SMOKE_INTERVAL;
+			createSmoke(projectile->pos);
+
+			while (projectile->time > projectile->CREATE_SMOKE_INTERVAL)
+				projectile->time -= projectile->CREATE_SMOKE_INTERVAL;
 		}
+
+		//sprawdz eksplozje
+		if (projectile->pos.x > 0 && projectile->pos.x < loadedMap->size.x && projectile->pos.z > 0 && projectile->pos.z < loadedMap->size.z)
+		{
+			if (projectile->pos.y <= loadedMap->pos[(int)(6 * ((int)projectile->pos.z + loadedMap->size.z*((int)projectile->pos.x)))].y)
+			{
+				float explosion_y = loadedMap->pos[(int)(6 * ((int)projectile->pos.z + loadedMap->size.z*((int)projectile->pos.x)))].y;
+				makeExplosion(projectile->pos.x, explosion_y, projectile->pos.z);
+				projectile = 0;
+			}
+		}
+		else if (projectile->pos.y <= 0)
+			projectile = 0;
 	}
 }
 
@@ -380,6 +442,7 @@ void moveObjects(double time)
 	moveTurret(time);
 	moveProjectile(time);
 	moveExplosion(time);
+	decreaseSmokeLife(time);
 }
 
 int main(void)

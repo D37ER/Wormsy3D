@@ -17,13 +17,15 @@ uniform sampler2D textureMap2;
 
 //Atrybuty
 in vec4 mapPos;
+in float startY;
 in vec4 normal;
 
 out vec4 lSun;
 out vec4 lExplosion;
 out vec4 lProjectile;
 out vec4 n;
-out vec3 color;
+out float height;
+out float startHeight;
 
 void main(void) {
     lSun = normalize(sun - mapPos); //wektor do światła w przestrzeni oka
@@ -34,7 +36,8 @@ void main(void) {
 		lProjectile = normalize(projectile - mapPos); //wektor do światła w przestrzeni oka
 	
 	n = normalize(normal);
-	color = vec3(0.5-0.05*mapPos.y, 0.5 + 0.05*mapPos.y, 0);
+	height = mapPos.y;
+	startHeight = startY;
 	
     gl_Position=P*V*mapPos;
 }

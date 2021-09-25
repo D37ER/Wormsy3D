@@ -46,12 +46,6 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 		if (key == GLFW_KEY_D) player->currentMovingSpeed.x = - player->MOVING_SPEED;
 		if (key == GLFW_KEY_W) player->currentMovingSpeed.z = player->MOVING_SPEED;
 		if (key == GLFW_KEY_S) player->currentMovingSpeed.z = - player->MOVING_SPEED;
-		if (key == GLFW_KEY_X && !projectile)
-		{
-			projectile = new Projectile();
-			projectile->rot = vec2(turret->rot.x  + PI / 4.0f, turret->rot.y + player->rotY - PI / 2);
-			projectile->pos = player->currentLoc;
-		}
 	}
 	if (action == GLFW_RELEASE) {
 		if (key == GLFW_KEY_A) player->currentMovingSpeed.x = 0;
@@ -74,6 +68,17 @@ void cursorPositionCallback(GLFWwindow* window, double xpos, double ypos)
 	while (camera->rot.y < 0)
 		camera->rot.y += 2 * PI;
 }
+
+void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+{
+	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS && !projectile)
+	{
+		projectile = new Projectile();
+		projectile->rot = vec2(turret->rot.x + PI / 4.0f, turret->rot.y + player->rotY - PI / 2);
+		projectile->pos = vec3(player->currentLoc.x, player->currentLoc.y + 1.8f, player->currentLoc.z);
+	}
+}
+
 
 void scrollCallback(GLFWwindow* window, double xoffset, double yoffset)
 {

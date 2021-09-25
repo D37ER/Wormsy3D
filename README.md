@@ -37,7 +37,7 @@ Projekt PUT GKiW
 
 ### poprawki
 - [ ] poprawa ruchu turreta
-- [ ] -oprawa źródeł światła
+- [ ] poprawa źródeł światła
 
 ### dodatkowo
 - [ ] niebo i woda

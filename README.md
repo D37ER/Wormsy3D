@@ -33,7 +33,7 @@ Projekt PUT GKiW
 - [x] przeciwnicy i inni gracze
 - [ ] :fast_forward: punkty życia
 - [ ] wiatr
-- [ ] gui (punkty życia)
+- [ ] :fast_forward: gui (punkty życia)
 
 ### poprawki
 - [x] poprawa ruchu turreta
@@ -43,7 +43,7 @@ Projekt PUT GKiW
 - [x] kamera pocisku
 - [ ] niebo i woda
 - [ ] tekstura mapy (multitekstura z teksturą wyboru)
-- [ ] obiekty na planszy (palmy)
+- [ ] :fast_forward: obiekty na planszy (palmy)
 - [ ] cegły (na mapie)
 - [ ] fizyka cegieł i niszczenie 
 - [ ] menu

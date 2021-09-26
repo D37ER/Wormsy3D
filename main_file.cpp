@@ -174,6 +174,8 @@ void drawScene(GLFWwindow* window)
 	//gracz
 	for (int playerIndex = 0; playerIndex < playerCount; playerIndex++)
 	{
+		if (players[playerIndex]->damage >= players[playerIndex]->MAX_LIFE)
+			continue;
 		mat4 M = mat4(1.0f);
 		M = translate(M, vec3(players[playerIndex]->turtle->currentLoc.x, players[playerIndex]->turtle->currentLoc.y, players[playerIndex]->turtle->currentLoc.z));
 		M = rotate(M, players[playerIndex]->turtle->rotY, vec3(0, 1, 0));
@@ -356,6 +358,20 @@ void makeExplosion(float x, float y, float z)
 {
 	explosion = new Explosion();
 	explosion->pos = vec3(x, y, z);
+
+	printf("\n LIFE LEFT: \n");
+	float d = 0;
+	for (int i = 0; i < playerCount; i++)
+	{
+		d = sqrt((players[i]->turtle->currentLoc.x - x)*(players[i]->turtle->currentLoc.x - x)
+			+ (players[i]->turtle->currentLoc.y - y)*(players[i]->turtle->currentLoc.y - y)
+			+ (players[i]->turtle->currentLoc.z - z)*(players[i]->turtle->currentLoc.z - z));
+		if (d < 10)
+			players[i]->damage += 50 - 5*d;
+
+		printf("\tplayer%d : %d % \n", i+1, players[i]->MAX_LIFE - players[i]->damage);
+	}
+	printf("\n");
 }
 
 void makeHole(float x, float y, float z)
@@ -401,6 +417,10 @@ void makeHole(float x, float y, float z)
 			loadedMap->normals[id + 5] = vec4(n, 1);
 		}
 	}
+
+	//aktualizuj pozycje graczy
+	for (int i = 0; i < playerCount; i++)
+		players[i]->turtle->currentLoc.y = loadedMap->pos[(int)(6 * ((int)players[i]->turtle->currentLoc.z + loadedMap->size.x*((int)players[i]->turtle->currentLoc.x)))].y + 0.1f; //ustaw pozycje gracza na zgodną z wysokością terenu
 }
 
 void createSmoke(vec3 pos)
@@ -461,9 +481,19 @@ void moveProjectile(double time)
 				camera->startMovePos = vec3(projectile->pos.x, explosion_y + 10, projectile->pos.z);
 				camera->startMoveRot = camera->rot;
 				movingMode = 3;
-				activePlayer++;
-				if (activePlayer == playerCount)
-					activePlayer = 0;
+				int c = 0;
+				do
+				{
+					c++;
+					activePlayer++;
+
+					if (activePlayer == playerCount)
+						activePlayer = 0;
+
+				} while (c < playerCount && players[activePlayer]->damage >= players[activePlayer]->MAX_LIFE);
+				if (c >= playerCount)
+					printf("gameOver\n player%d wins", activePlayer+1);
+				
 				projectile = 0;
 			}
 		}

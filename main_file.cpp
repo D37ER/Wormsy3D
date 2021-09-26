@@ -31,8 +31,8 @@ const char * MAP_FILES_LOCATION = "maps/";
 //zmienne globalne
 
 Camera * camera;
-Player * player;
-Turret * turret;
+extern Player ** players = new Player * [3];
+extern int playerCount = 3;
 LoadedMap * loadedMap;
 float PROJECTILE_FORWARD_SPEED = 50;
 float PROJECTILE_FALLING_SPEED = 0.5f;
@@ -58,9 +58,22 @@ Object * projectileObj;
 Object * explosionObj;
 Object * smokeObj;
 
+int movingMode = 0;
+int activePlayer = 0;
+
 //zmienne w obrębie main_file.cpp
 
 int chosenMap = 0;
+
+Player *  createPlayer(float x, float z, float ry)
+{
+	Player * out = new Player();
+	out->turtle = new Turtle();
+	out->turtle->currentLoc = vec3(x, loadedMap->pos[(int)(6 * ((int)z + loadedMap->size.z*((int)x)))].y, z);
+	out->turtle->rotY = ry;
+	out->turret = new Turret();
+	return out;
+}
 
 //Procedura inicjująca
 void initOpenGLProgram(GLFWwindow* window) 
@@ -78,13 +91,11 @@ void initOpenGLProgram(GLFWwindow* window)
 	spMap = new ShaderProgram("shaders/mapVS.glsl", NULL, "shaders/mapFS.glsl");
 
 	camera = new Camera();
-	player = new Player();
-	turret = new Turret();
 	trajectory = new Trajectory();
 	gameWindow = new Window();
 
-	playerObj = loadObject("objects/turtle.obj", readTexture("textures/turtle.png"), readTexture("textures/turtle2.png"));
-	turretObj = loadObject("objects/turret.obj", readTexture("textures/turret.png"), readTexture("textures/turret2.png"));
+	playerObj = loadObject("objects/turtle.obj", readTexture("textures/turtle.png"), readTexture("textures/players[activePlayer]->turtle2.png"));
+	turretObj = loadObject("objects/turret.obj", readTexture("textures/turret.png"), readTexture("textures/players[activePlayer]->turret2.png"));
 	trajectoryObj = loadObject("objects/sphere.obj", readTexture("textures/trajectory.png"), 0);
 	projectileObj = loadObject("objects/rocket.obj", readTexture("textures/rocket.png"), 0);
 	explosionObj = loadObject("objects/explosion.obj", readTexture("textures/explosion.png"), 0);
@@ -92,6 +103,10 @@ void initOpenGLProgram(GLFWwindow* window)
 
 	readMapList(MAP_FILES_LOCATION, &mapList, &mapListSize);
 	loadMap(mapList, chosenMap, &loadedMap);
+
+	players[0] = createPlayer(30, 30, 0);
+	players[1] = createPlayer(100, 100, 0);
+	players[2] = createPlayer(200, 200, PI);
 }
 
 //Zwolnienie zasobów zajętych przez program
@@ -146,41 +161,52 @@ void drawScene(GLFWwindow* window)
 		vec3(0.0f, 1.0f, 0.0f)); //Wylicz macierz widoku
 	V = rotate(V, -camera->rot.x, vec3(1.0f, 0.0f, 0.0f));
 	V = rotate(V, -camera->rot.y, vec3(0.0f, 1.0f, 0.0f));
-	V = translate(V, vec3(-player->currentLoc.x, -player->currentLoc.y - 10, -player->currentLoc.z));
+	if (movingMode == 2)
+		V = translate(V, vec3(-projectile->pos.x, -projectile->pos.y - 10, -projectile->pos.z));
+	else if (movingMode == 3)
+		V = translate(V, vec3(-camera->movePos.x, -camera->movePos.y, -camera->movePos.z));
+	else 
+		V = translate(V, vec3(-players[activePlayer]->turtle->currentLoc.x, -players[activePlayer]->turtle->currentLoc.y - 10, -players[activePlayer]->turtle->currentLoc.z));
 
 	//macierz perspektywy
 	mat4 P = perspective(gameWindow->fov*PI / 180.0f, gameWindow->aspectRatio, 0.01f, 500.0f); //Wylicz macierz rzutowania
 
 	//gracz
-	mat4 M = mat4(1.0f);
-	M = translate(M, vec3(player->currentLoc.x, player->currentLoc.y, player->currentLoc.z)); 
-	M = rotate(M, player->rotY, vec3(0, 1, 0)); 
-	drawObject(P, V, M, playerObj);
-	
-
-	//działo
-	M = rotate(M, turret->rot.y - PI/2, vec3(0, 1, 0)); 
-	drawObject(P, V, M, turretObj);
-	M = translate(M, vec3(0, 1.8345f, -0.41829f)); 
-	M = rotate(M, turret->rot.x - PI / 4, vec3(1, 0, 0)); 
-	M = translate(M, vec3(0, -1.8345f, 0.41829f)); 
-	if (!projectile)
-		drawObject(P, V, M, projectileObj);
-
-	//trajektoria
-	M = rotate(M, PI / 2, vec3(0, 1, 0));
-	M = rotate(M, PI / 2, vec3(0, 0, 1));
-	M = translate(M, vec3(1.8, 0, 0));
-	for (int i = 0; i < trajectory->count; i++)
+	for (int playerIndex = 0; playerIndex < playerCount; playerIndex++)
 	{
-		M = rotate(M, PROJECTILE_FALLING_SPEED*(trajectory->time / trajectory->count), vec3(0, 0, 1)); 
-		M = translate(M, vec3(0, PROJECTILE_FORWARD_SPEED*(trajectory->time / trajectory->count), 0)); 
-		
-		M = scale(M, vec3(trajectory->size, trajectory->size, trajectory->size));
-		drawObject(P, V, M, trajectoryObj);
-		M = scale(M, vec3(1 / trajectory->size, 1 / trajectory->size, 1 / trajectory->size));
-	}
+		mat4 M = mat4(1.0f);
+		M = translate(M, vec3(players[playerIndex]->turtle->currentLoc.x, players[playerIndex]->turtle->currentLoc.y, players[playerIndex]->turtle->currentLoc.z));
+		M = rotate(M, players[playerIndex]->turtle->rotY, vec3(0, 1, 0));
+		drawObject(P, V, M, playerObj);
 
+		//działo
+		M = rotate(M, players[playerIndex]->turret->rot.y, vec3(0, 1, 0));
+		drawObject(P, V, M, turretObj);
+		M = translate(M, vec3(0, 1.8345f, -0.41829f));
+		M = rotate(M, players[playerIndex]->turret->rot.x - PI / 4, vec3(1, 0, 0));
+		M = translate(M, vec3(0, -1.8345f, 0.41829f));
+		if (!projectile)
+			drawObject(P, V, M, projectileObj);
+
+		//trajektoria
+		if (activePlayer == playerIndex && movingMode == 1)
+		{
+			M = rotate(M, PI / 2, vec3(0, 1, 0));
+			M = rotate(M, PI / 2, vec3(0, 0, 1));
+			M = translate(M, vec3(1.8, 0, 0));
+			for (int i = 0; i < trajectory->count; i++)
+			{
+				M = rotate(M, PROJECTILE_FALLING_SPEED*(trajectory->time / trajectory->count), vec3(0, 0, 1));
+				M = translate(M, vec3(0, PROJECTILE_FORWARD_SPEED*(trajectory->time / trajectory->count), 0));
+
+				M = scale(M, vec3(trajectory->size, trajectory->size, trajectory->size));
+				drawObject(P, V, M, trajectoryObj);
+				M = scale(M, vec3(1 / trajectory->size, 1 / trajectory->size, 1 / trajectory->size));
+			}
+		}
+	}
+	mat4 M;
+	
 	//pocisk
 	if (projectile)
 	{
@@ -212,7 +238,6 @@ void drawScene(GLFWwindow* window)
 			drawObject(P, V, M, smokeObj);
 		}
 	}
-	
 	//mapa
 	vec4 sunPos = vec4(-50, 300, -50, 1);
 	vec4 explosionPos = vec4(0, 0, 0, 1);
@@ -250,63 +275,81 @@ void drawScene(GLFWwindow* window)
 	
 	glDisableVertexAttribArray(spMap->a("mapPos"));  //Wyłącz przesyłanie danych do atrybutu mapPos
 	glDisableVertexAttribArray(spMap->a("normal"));  //Wyłącz przesyłanie danych do atrybutu normal
-
 	glfwSwapBuffers(window); //Przerzuć tylny bufor na przedni
 }
 
 void movePlayer(double time)
 {
 	//przesuwanie
-	player->currentLoc.x += sin(player->rotY + PI / 2.0f)*player->currentMovingSpeed.x * time + sin(player->rotY)*player->currentMovingSpeed.z * time; //Zwiększ/zmniejsz pozycje na podstawie prędkości, obrotu gracza i czasu jaki upłynał od poprzedniej klatki
-	player->currentLoc.z += cos(player->rotY + PI / 2.0f)*player->currentMovingSpeed.x * time + cos(player->rotY)*player->currentMovingSpeed.z * time; //Zwiększ/zmniejsz pozycje na podstawie prędkości, obrotu gracza i czasu jaki upłynał od poprzedniej klatki
-	player->currentLoc.y = loadedMap->pos[(int)(6 * ((int)player->currentLoc.z + loadedMap->size.x*((int)player->currentLoc.x)))].y + 0.1f; //ustaw pozycje gracza na zgodną z wysokością terenu
+	players[activePlayer]->turtle->currentLoc.x += sin(players[activePlayer]->turtle->rotY + PI / 2.0f)*players[activePlayer]->turtle->currentMovingSpeed.x * time + sin(players[activePlayer]->turtle->rotY)*players[activePlayer]->turtle->currentMovingSpeed.z * time; //Zwiększ/zmniejsz pozycje na podstawie prędkości, obrotu gracza i czasu jaki upłynał od poprzedniej klatki
+	players[activePlayer]->turtle->currentLoc.z += cos(players[activePlayer]->turtle->rotY + PI / 2.0f)*players[activePlayer]->turtle->currentMovingSpeed.x * time + cos(players[activePlayer]->turtle->rotY)*players[activePlayer]->turtle->currentMovingSpeed.z * time; //Zwiększ/zmniejsz pozycje na podstawie prędkości, obrotu gracza i czasu jaki upłynał od poprzedniej klatki
+	players[activePlayer]->turtle->currentLoc.y = loadedMap->pos[(int)(6 * ((int)players[activePlayer]->turtle->currentLoc.z + loadedMap->size.x*((int)players[activePlayer]->turtle->currentLoc.x)))].y + 0.1f; //ustaw pozycje gracza na zgodną z wysokością terenu
 
 	//obracanie
-	if (player->currentMovingSpeed.z != 0)
-	{
-		float rotDif = camera->rot.y - player->rotY;
-		if (rotDif < 0.05 && rotDif > -0.05)
-			player->currentRotSpeed = 0;
-		else if (rotDif >= PI || (rotDif <= 0 && rotDif > -PI))
-			player->currentRotSpeed = -player->ROT_SPEED;
-		else
-			player->currentRotSpeed = player->ROT_SPEED;
+	players[activePlayer]->turtle->rotY += players[activePlayer]->turtle->currentRotSpeed * time; //Zwiększ/zmniejsz rotacje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
 
-		player->rotY += player->currentRotSpeed * time; //Zwiększ/zmniejsz rotacje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
+	while (players[activePlayer]->turtle->rotY > 2 * PI)
+		players[activePlayer]->turtle->rotY -= 2 * PI;
 
-		while (player->rotY > 2 * PI)
-			player->rotY -= 2 * PI;
-
-		while (player->rotY < 0)
-			player->rotY += 2 * PI;
-	}
+	while (players[activePlayer]->turtle->rotY < 0)
+		players[activePlayer]->turtle->rotY += 2 * PI;
 }
 
-void moveTurret(double time) //TODO poprawić
+void moveTurret(double time)
 {
-	//działo
-	if (turret->rot.x > camera->rot.x + 2 * turret->ROT_SPEED.x* time)
-		turret->rot.x -= turret->ROT_SPEED.x * time;
-	else if (turret->rot.x < camera->rot.x - 2 * turret->ROT_SPEED.x* time)
-		turret->rot.x += turret->ROT_SPEED.x * time;
+	//obliczanie różnicy y kamera - działo
+	float cameraRotYPlayer = camera->rot.y - players[activePlayer]->turtle->rotY;
+	if (cameraRotYPlayer < 0)
+		cameraRotYPlayer += 2 * PI;
+	float diff = players[activePlayer]->turret->rot.y - cameraRotYPlayer;
 
-	if (turret->rot.x > 0.25f * PI && turret->rot.x < PI)
-		turret->rot.x = 0.25f * PI;
-	if (turret->rot.x > PI && turret->rot.x < 1.75f*PI)
-		turret->rot.x = 1.75f*PI;
+	//obliczanie kierunku y ruchu działa
+	if (diff > -0.01f && diff < 0.01f)
+		players[activePlayer]->turret->currentRotSpeed.y = 0;
+	else if ((diff < 0 && diff > -PI)|| diff > PI )
+		players[activePlayer]->turret->currentRotSpeed.y = players[activePlayer]->turret->ROT_SPEED.y;
+	else if ((diff > 0 && diff < PI) || diff < - PI )
+		players[activePlayer]->turret->currentRotSpeed.y = -players[activePlayer]->turret->ROT_SPEED.y;
+	
+	//sprawdzanie ogrniczeń ruchu y
+	players[activePlayer]->turret->rot.y += players[activePlayer]->turret->currentRotSpeed.y*time;
+	if (players[activePlayer]->turret->rot.y > PI/2 && players[activePlayer]->turret->rot.y < PI)
+		players[activePlayer]->turret->rot.y = PI/2;
+	if (players[activePlayer]->turret->rot.y < 1.5f*PI && players[activePlayer]->turret->rot.y > PI)
+		players[activePlayer]->turret->rot.y = 1.5f*PI;
+	
+	//sprawdzanie pełnych okrążeń y
+	while (players[activePlayer]->turret->rot.y < 0)
+		players[activePlayer]->turret->rot.y += 2 * PI;
 
-	//printf("%f \t %f \t \t %f %f\n", turret->rot.y, player->rotY, turret->rot.y + player->rotY, camera->rot.y);
+	while (players[activePlayer]->turret->rot.y > 2 * PI)
+		players[activePlayer]->turret->rot.y -= 2 * PI;
 
+	//obliczanie różnicy x kamera - działo
+	diff = players[activePlayer]->turret->rot.x - camera->rot.x;
 
-	if (turret->rot.y + player->rotY - PI / 2 > camera->rot.y + 2 * turret->ROT_SPEED.y* time)
-		turret->rot.y -= turret->ROT_SPEED.y * time;
-	else if (turret->rot.y + player->rotY - PI / 2 < camera->rot.y - 2 * turret->ROT_SPEED.y* time)
-		turret->rot.y += turret->ROT_SPEED.y * time;
+	//obliczanie kierunku x ruchu działa
+	if (diff > -0.01f && diff < 0.01f)
+		players[activePlayer]->turret->currentRotSpeed.x = 0;
+	else if ((diff < 0 && diff > -PI) || diff > PI)
+		players[activePlayer]->turret->currentRotSpeed.x = players[activePlayer]->turret->ROT_SPEED.x;
+	else if ((diff > 0 && diff < PI) || diff < -PI)
+		players[activePlayer]->turret->currentRotSpeed.x = -players[activePlayer]->turret->ROT_SPEED.x;
 
-	if (turret->rot.y < 0)
-		turret->rot.y = 0;
-	if (turret->rot.y > PI)
-		turret->rot.y = PI;
+	//sprawdzanie ogrniczeń ruchu y
+	players[activePlayer]->turret->rot.x += players[activePlayer]->turret->currentRotSpeed.x*time;
+	if (players[activePlayer]->turret->rot.x > 0.25f*PI  && players[activePlayer]->turret->rot.x < PI)
+		players[activePlayer]->turret->rot.x = 0.25f*PI;
+	if (players[activePlayer]->turret->rot.x < 1.76f*PI && players[activePlayer]->turret->rot.x > PI)
+		players[activePlayer]->turret->rot.x = 1.76f*PI;
+
+	//sprawdzanie pełnych okrążeń y
+	while (players[activePlayer]->turret->rot.x < 0)
+		players[activePlayer]->turret->rot.x += 2 * PI;
+
+	while (players[activePlayer]->turret->rot.x > 2 * PI)
+		players[activePlayer]->turret->rot.x -= 2 * PI;
+
 }
 
 void makeExplosion(float x, float y, float z)
@@ -414,6 +457,13 @@ void moveProjectile(double time)
 			{
 				float explosion_y = loadedMap->pos[(int)(6 * ((int)projectile->pos.z + loadedMap->size.z*((int)projectile->pos.x)))].y;
 				makeExplosion(projectile->pos.x, explosion_y, projectile->pos.z);
+				camera->movePos = vec3(projectile->pos.x, explosion_y + 10, projectile->pos.z);
+				camera->startMovePos = vec3(projectile->pos.x, explosion_y + 10, projectile->pos.z);
+				camera->startMoveRot = camera->rot;
+				movingMode = 3;
+				activePlayer++;
+				if (activePlayer == playerCount)
+					activePlayer = 0;
 				projectile = 0;
 			}
 		}
@@ -435,11 +485,38 @@ void moveExplosion(double time)
 	}
 }
 
-//Procedura aktualizująca pozycje
-void moveObjects(double time)
+void moveCamera(double time)
 {
-	movePlayer(time);
-	moveTurret(time);
+	if (camera->stepTime < 2)
+		camera->stepTime += time;
+	else if (camera->stepTime < 4)
+	{
+		if(camera->startMoveRot.x > PI)
+			camera->rot = vec2(camera->startMoveRot.x - (camera->startMoveRot.x - 2*PI)*(camera->stepTime - 2) / 2, camera->startMoveRot.y - (camera->startMoveRot.y - players[activePlayer]->turtle->rotY)*(camera->stepTime - 2) / 2);
+		else
+			camera->rot = vec2((4-camera->stepTime)/2*camera->startMoveRot.x, camera->startMoveRot.y - (camera->startMoveRot.y -players[activePlayer]->turtle->rotY)*(camera->stepTime - 2) / 2);
+		camera->movePos = vec3(camera->startMovePos.x + -(camera->startMovePos.x - players[activePlayer]->turtle->currentLoc.x)*(camera->stepTime -2)/2,
+			camera->startMovePos.y + -(camera->startMovePos.y - players[activePlayer]->turtle->currentLoc.y - 10)*(camera->stepTime - 2) / 2,
+			camera->startMovePos.z + -(camera->startMovePos.z - players[activePlayer]->turtle->currentLoc.z)*(camera->stepTime - 2) / 2);
+		camera->stepTime += time;
+	}
+	else
+	{
+		camera->stepTime = 0;
+		movingMode = 0;
+	}
+
+}
+
+//Procedura aktualizująca pozycje
+void moveAllObjects(double time)
+{
+	if(movingMode == 0)
+		movePlayer(time);
+	else if (movingMode == 1)
+		moveTurret(time);
+	else if (movingMode == 3)
+		moveCamera(time);
 	moveProjectile(time);
 	moveExplosion(time);
 	decreaseSmokeLife(time);
@@ -480,7 +557,7 @@ int main(void)
 	glfwSetTime(0); //Zeruj timer
 	while (!glfwWindowShouldClose(window)) //Tak długo jak okno nie powinno zostać zamknięte
 	{
-		moveObjects(glfwGetTime());
+		moveAllObjects(glfwGetTime());
 		glfwSetTime(0); //Zeruj timer
 		drawScene(window); //Wykonaj procedurę rysującą
 		glfwPollEvents(); //Wykonaj procedury callback w zalezności od zdarzeń jakie zaszły.

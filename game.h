@@ -51,15 +51,18 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 	{
 		vec2 rot = vec2(0,0);
 		float distance = 30;
+		float stepTime = 0;
+		vec3 movePos;
+		vec3 startMovePos;
+		vec2 startMoveRot;
 	};
 
-	struct Player
+	struct Turtle
 	{
 		float ROT_SPEED = 1;
-		float MOVING_SPEED = 20;
-		bool moving_forward = false;
+		float MOVING_SPEED = 5;
 		float rotY = 0;
-		vec3 currentLoc = vec3(50, 1, 50);
+		vec3 currentLoc = vec3(0, 10, 0);
 		vec3 currentMovingSpeed = vec3(0, 0, 0);
 		float currentRotSpeed = 0;
 	};
@@ -67,7 +70,16 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 	struct Turret
 	{
 		vec2 ROT_SPEED = vec2(1, 0.5f);
+		vec2 currentRotSpeed = vec2(0,0);
 		vec2 rot = vec2(0, 0);
+	};
+
+	struct Player
+	{
+		int MAX_LIFE = 100;
+		Turtle * turtle;
+		Turret * turret;
+		int damage = 0;
 	};
 
 	struct Map
@@ -146,8 +158,8 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 
 //zmienne globalne
 	extern Camera * camera;
-	extern Player * player;
-	extern Turret * turret;
+	extern Player ** players;
+	extern int playerCount;
 	extern LoadedMap * loadedMap;
 	extern float PROJECTILE_FORWARD_SPEED;
 	extern float PROJECTILE_FALLING_SPEED;
@@ -173,6 +185,8 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 	extern Object * explosionObj;
 	extern Object * smokeObj;
 
+	extern int movingMode;
+	extern int activePlayer;
 
 //procedury wydarzeñ
 	void errorCallback(int error, const char* description);

@@ -223,6 +223,7 @@ void loadMap(Map ** mapList, int chosen, LoadedMap ** loadedMap)
 
 Object * loadObject(const char * objectFileName, GLuint tex0, GLuint tex1)
 {
+	printf("loading object : %s\n", objectFileName);
 	Object * out = new Object;
 	if (!objectFileName)
 	{

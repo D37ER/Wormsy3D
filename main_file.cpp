@@ -31,8 +31,8 @@ const char * MAP_FILES_LOCATION = "maps/";
 //zmienne globalne
 
 Camera * camera;
-extern Player ** players = new Player * [3];
-extern int playerCount = 3;
+Player ** players = new Player * [3];
+int playerCount = 3;
 LoadedMap * loadedMap;
 float PROJECTILE_FORWARD_SPEED = 50;
 float PROJECTILE_FALLING_SPEED = 0.5f;
@@ -40,8 +40,9 @@ Projectile * projectile;
 Trajectory * trajectory;
 Explosion * explosion;
 float EXPLOSION_OBJECT_SIZE = 50;
-extern Smoke ** smoke = new Smoke * [300];
-extern int smokeCount = 0;
+Smoke ** smoke = new Smoke * [300];
+int smokeCount = 0;
+Wind * wind;
 Window * gameWindow;
 
 ShaderProgram *spObjects, *spMap;
@@ -57,6 +58,7 @@ Object * trajectoryObj;
 Object * projectileObj;
 Object * explosionObj;
 Object * smokeObj;
+Object * arrowObj;
 
 int movingMode = 0;
 int activePlayer = 0;
@@ -93,6 +95,7 @@ void initOpenGLProgram(GLFWwindow* window)
 	camera = new Camera();
 	trajectory = new Trajectory();
 	gameWindow = new Window();
+	wind = new Wind();
 
 	playerObj = loadObject("objects/turtle.obj", readTexture("textures/turtle.png"), readTexture("textures/players[activePlayer]->turtle2.png"));
 	turretObj = loadObject("objects/turret.obj", readTexture("textures/turret.png"), readTexture("textures/players[activePlayer]->turret2.png"));
@@ -100,9 +103,13 @@ void initOpenGLProgram(GLFWwindow* window)
 	projectileObj = loadObject("objects/rocket.obj", readTexture("textures/rocket.png"), 0);
 	explosionObj = loadObject("objects/explosion.obj", readTexture("textures/explosion.png"), 0);
 	smokeObj = loadObject("objects/sphere.obj", readTexture("textures/smoke.png"), 0);
+	arrowObj = loadObject("objects/arrow.obj", 0, 0);
 
 	readMapList(MAP_FILES_LOCATION, &mapList, &mapListSize);
 	loadMap(mapList, chosenMap, &loadedMap);
+	wind->tex0 = readTexture("textures/arrow1.png");
+	wind->tex1 = readTexture("textures/arrow2.png");
+	wind->tex2 = readTexture("textures/arrow3.png");
 
 	players[0] = createPlayer(30, 30, 0);
 	players[1] = createPlayer(100, 100, 0);
@@ -117,7 +124,7 @@ void freeOpenGLProgram(GLFWwindow* window)
 }
 
 //Procedura rysująca 1 obiekt
-void drawObject(mat4 P, mat4 V, mat4 M, Object * object)
+void drawObject(mat4 P, mat4 V, mat4 M, Object * object, GLuint tex0, GLuint tex1)
 {
 	spObjects->use();//Aktywacja programu cieniującego
 	//Przeslij parametry programu cieniującego do karty graficznej
@@ -136,17 +143,23 @@ void drawObject(mat4 P, mat4 V, mat4 M, Object * object)
 
 	glUniform1i(spObjects->u("textureMap0"), 0);
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, object->tex0);
+	glBindTexture(GL_TEXTURE_2D, tex0);
 
 	glUniform1i(spObjects->u("textureMap1"), 1);
 	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, object->tex1);
+	glBindTexture(GL_TEXTURE_2D, tex1);
 
 	glDrawArrays(GL_TRIANGLES, 0, object->vertexCount); //Narysuj obiekt
 
 	glDisableVertexAttribArray(spObjects->a("vertex"));  //Wyłącz przesyłanie danych do atrybutu vertex
 	glDisableVertexAttribArray(spObjects->a("normal"));  //Wyłącz przesyłanie danych do atrybutu normal
 	glDisableVertexAttribArray(spObjects->a("texCoord0"));  //Wyłącz przesyłanie danych do atrybutu texCoord0
+}
+
+//Procedura rysująca 1 obiekt
+void drawObject(mat4 P, mat4 V, mat4 M, Object * object)
+{
+	drawObject(P, V, M, object, object->tex0, object->tex1);
 }
 
 //Procedura rysująca zawartość sceny
@@ -240,6 +253,23 @@ void drawScene(GLFWwindow* window)
 			drawObject(P, V, M, smokeObj);
 		}
 	}
+
+	//wiatr
+	mat4 V2 = lookAt(
+		vec3(0, 0, -5),
+		vec3(0, 0, 0),
+		vec3(0.0f, 1.0f, 0.0f));
+	M = mat4(1.0f);
+	M = translate(M, vec3(-2,2,0));
+	M = rotate(M, wind->direction, vec3(0, 1, 0));
+	M = rotate(M, -camera->rot.y, vec3(0.0f, 1.0f, 0.0f));
+	if (wind->level == 0)
+		drawObject(P, V2, M, arrowObj, wind->tex0, 0);
+	else if (wind->level == 1)
+		drawObject(P, V2, M, arrowObj, wind->tex1, 0);
+	else if (wind->level == 2)
+		drawObject(P, V2, M, arrowObj, wind->tex2, 0);
+
 	//mapa
 	vec4 sunPos = vec4(-50, 300, -50, 1);
 	vec4 explosionPos = vec4(0, 0, 0, 1);
@@ -369,6 +399,9 @@ void makeExplosion(float x, float y, float z)
 		if (d < 10)
 			players[i]->damage += 50 - 5*d;
 
+		if (players[i]->damage > players[i]->MAX_LIFE)
+			players[i]->damage = players[i]->MAX_LIFE;
+
 		printf("\tplayer%d : %d % \n", i+1, players[i]->MAX_LIFE - players[i]->damage);
 	}
 	printf("\n");
@@ -454,6 +487,23 @@ void moveProjectile(double time)
 		projectile->pos.z += sin(projectile->rot.x)*cos(projectile->rot.y)*PROJECTILE_FORWARD_SPEED * time; //Zwiększ/zmniejsz pozycje na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
 		projectile->pos.y += cos(projectile->rot.x)*PROJECTILE_FORWARD_SPEED * time;
 
+		//wiatr
+		if (wind->level == 0)
+		{
+			projectile->pos.x += sin(wind->direction)*wind->level0Strength * time; 
+			projectile->pos.z += cos(wind->direction)*wind->level0Strength * time; 
+		}
+		else if (wind->level == 1)
+		{
+			projectile->pos.x += sin(wind->direction)*wind->level1Strength * time;
+			projectile->pos.z += cos(wind->direction)*wind->level1Strength * time;
+		}
+		else if (wind->level == 2)
+		{
+			projectile->pos.x += sin(wind->direction)*wind->level2Strength * time;
+			projectile->pos.z += cos(wind->direction)*wind->level2Strength * time;
+		}
+
 		projectile->rot.x += PROJECTILE_FALLING_SPEED * time;
 		if (projectile->rot.x > PI)
 			projectile->rot.x = PI;
@@ -492,7 +542,10 @@ void moveProjectile(double time)
 
 				} while (c < playerCount && players[activePlayer]->damage >= players[activePlayer]->MAX_LIFE);
 				if (c >= playerCount)
-					printf("gameOver\n player%d wins", activePlayer+1);
+				{
+					printf("gameOver\n player%d wins", activePlayer + 1);
+					movingMode = 4;
+				}
 				
 				projectile = 0;
 			}
@@ -534,6 +587,8 @@ void moveCamera(double time)
 	{
 		camera->stepTime = 0;
 		movingMode = 0;
+		wind->level = rand() % 3;
+		wind->direction = (rand() % 200*PI)/100.0f;
 	}
 
 }

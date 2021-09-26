@@ -135,6 +135,18 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 		float life;
 	};
 
+	struct Wind
+	{
+		float level0Strength = 1;
+		float level1Strength = 5;
+		float level2Strength = 10;
+		float direction = 0;
+		int level = 0;
+		GLuint tex0;
+		GLuint tex1;
+		GLuint tex2;
+	};
+
 	struct Window
 	{
 		int height = 900;
@@ -169,6 +181,7 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 	extern float EXPLOSION_OBJECT_SIZE;
 	extern Smoke ** smoke;
 	extern int smokeCount;
+	extern Wind * wind;
 	extern Window * gameWindow;
 
 	extern ShaderProgram *spObjects, *spMap;
@@ -184,6 +197,7 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 	extern Object * projectileObj;
 	extern Object * explosionObj;
 	extern Object * smokeObj;
+	extern Object * arrowObj;
 
 	extern int movingMode;
 	extern int activePlayer;

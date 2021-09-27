@@ -111,7 +111,7 @@ void initOpenGLProgram(GLFWwindow* window)
 	wind->tex1 = readTexture("textures/arrow2.png");
 	wind->tex2 = readTexture("textures/arrow3.png");
 
-	players[0] = createPlayer(30, 30, 0);
+	players[0] = createPlayer(100, 30, 0);
 	players[1] = createPlayer(100, 100, 0);
 	players[2] = createPlayer(200, 200, PI);
 }
@@ -521,7 +521,7 @@ void moveProjectile(double time)
 		}
 
 		//sprawdz eksplozje
-		if (projectile->pos.x > 0 && projectile->pos.x < loadedMap->size.x && projectile->pos.z > 0 && projectile->pos.z < loadedMap->size.z)
+		if (projectile->pos.x > 5 && projectile->pos.x < loadedMap->size.x-5 && projectile->pos.z > 5 && projectile->pos.z < loadedMap->size.z-5)
 		{
 			if (projectile->pos.y <= loadedMap->pos[(int)(6 * ((int)projectile->pos.z + loadedMap->size.z*((int)projectile->pos.x)))].y)
 			{
@@ -593,6 +593,35 @@ void moveCamera(double time)
 
 }
 
+void checkInWater()
+{
+	for (int i = 0; i < playerCount; i++)
+	{
+		if (players[i]->turtle->currentLoc.y < 1)
+		{
+			players[i]->damage = players[i]->MAX_LIFE;
+			if (i == activePlayer)
+			{
+				int c = 0;
+				do
+				{
+					c++;
+					activePlayer++;
+
+					if (activePlayer == playerCount)
+						activePlayer = 0;
+
+				} while (c < playerCount && players[activePlayer]->damage >= players[activePlayer]->MAX_LIFE);
+				if (c >= playerCount)
+				{
+					printf("gameOver\n player%d wins", activePlayer + 1);
+					movingMode = 4;
+				}
+			}
+		}
+	}
+}
+
 //Procedura aktualizująca pozycje
 void moveAllObjects(double time)
 {
@@ -605,6 +634,7 @@ void moveAllObjects(double time)
 	moveProjectile(time);
 	moveExplosion(time);
 	decreaseSmokeLife(time);
+	checkInWater();
 }
 
 int main(void)
